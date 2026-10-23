@@ -1,0 +1,56 @@
+// ---------------------------------------------------------------------------
+// CsWin32 manifest for the controller.
+//
+// The controller's only native code is the tray icon and asking to be restarted after an upgrade.
+// Showing and hiding the window is Avalonia's. Everything that touches input, the network or
+// another session lives in the Rust service and agent, so this list is deliberately short.
+// ---------------------------------------------------------------------------
+
+// --- The window that owns the tray icon ---
+CreateWindowEx
+DestroyWindow
+RegisterClassEx
+UnregisterClass
+DefWindowProc
+GetMessage
+TranslateMessage
+DispatchMessage
+PostQuitMessage
+PostMessage
+WNDPROC
+WNDCLASSEXW
+WINDOW_EX_STYLE
+WINDOW_STYLE
+HWND_MESSAGE
+WM_DESTROY
+WM_APP
+WM_LBUTTONUP
+WM_LBUTTONDBLCLK
+WM_RBUTTONUP
+WM_NULL
+
+// --- Tray icon ---
+Shell_NotifyIcon
+NOTIFYICONDATAW
+NOTIFY_ICON_MESSAGE
+LoadIcon
+IDI_APPLICATION
+ExtractIconEx
+DestroyIcon
+RegisterWindowMessage
+
+// --- Tray context menu ---
+// TrackPopupMenuEx rather than TrackPopupMenu: it takes the owning window explicitly, which is what
+// the "menu stays up after you click elsewhere" workaround depends on.
+CreatePopupMenu
+AppendMenu
+DestroyMenu
+TrackPopupMenuEx
+MENU_ITEM_FLAGS
+TRACK_POPUP_MENU_FLAGS
+SetForegroundWindow
+GetCursorPos
+SetCursorPos
+
+// --- Coming back after Restart Manager closes the controller for an upgrade ---
+RegisterApplicationRestart

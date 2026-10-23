@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\VirtualKmSwitch.Core\VirtualKmSwitch.Core.csproj" />
+    <ProjectReference Include="..\..\VirtualKmSwitch.InputEngine\VirtualKmSwitch.InputEngine.csproj" />
+    <ProjectReference Include="..\..\VirtualKmSwitch.Ipc\VirtualKmSwitch.Ipc.csproj" />
+    <ProjectReference Include="..\..\VirtualKmSwitch.Transport\VirtualKmSwitch.Transport.csproj" />
+    <ProjectReference Include="..\..\VirtualKmSwitch.Cluster\VirtualKmSwitch.Cluster.csproj" />
+
+    <!--
+      Referenced for the service's own composition of the pieces above: which of them the control
+      endpoint exposes, and what it deliberately withholds, is behaviour worth a test rather than
+      an assumption.
+    -->
+    <ProjectReference Include="..\..\VirtualKmSwitch.Service\VirtualKmSwitch.Service.csproj" />
+  </ItemGroup>
+
+</Project>

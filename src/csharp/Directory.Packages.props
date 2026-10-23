@@ -1,0 +1,17 @@
+<Project>
+
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The controller's UI. All three move together; mixed Avalonia versions fail at runtime. -->
+    <PackageVersion Include="Avalonia" Version="12.1.0" />
+    <PackageVersion Include="Avalonia.Desktop" Version="12.1.0" />
+    <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.1.0" />
+
+    <!-- The controller's tray icon is its only native code. -->
+    <PackageVersion Include="Microsoft.Windows.CsWin32" Version="0.3.333" />
+  </ItemGroup>
+
+</Project>

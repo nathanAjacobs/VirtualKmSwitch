@@ -1,0 +1,17 @@
+[package]
+name = "vkms-agent"
+description = "The session agent: SYSTEM, one per desktop. Capture, blocking, hotkeys and injection."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "vkms-agent"
+path = "src/main.rs"
+
+[dependencies]
+vkms-core.workspace = true
+vkms-win.workspace = true
+vkms-ipc.workspace = true
+log.workspace = true

@@ -1,0 +1,8 @@
+# Rust (src/rust/target) and the installer's output (target/installer)
+target/
+
+# .NET
+bin/
+obj/
+.vs/
+*.user

@@ -1,0 +1,127 @@
+<UserControl
+    x:Class="VirtualKmSwitch.Gui.Pages.HotkeysPage"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:pages="clr-namespace:VirtualKmSwitch.Gui.Pages">
+
+    <UserControl.Styles>
+        <!--
+            An unassigned slot has nothing to clear, but its Clear button keeps its space, so every
+            Assign button lines up in one column down the card.
+        -->
+        <Style Selector="Button.vacant">
+            <Setter Property="Opacity" Value="0" />
+            <Setter Property="IsEnabled" Value="False" />
+        </Style>
+    </UserControl.Styles>
+
+    <ScrollViewer>
+        <StackPanel Margin="{StaticResource PagePadding}" Spacing="18">
+
+            <StackPanel Spacing="4">
+                <TextBlock Text="Hotkeys" Classes="title" />
+                <TextBlock
+                    Text="Local to this machine. Every machine keeps its own map, so Ctrl+Alt+1 can mean something different on each."
+                    Classes="subtitle" />
+            </StackPanel>
+
+            <!--
+                The fixed keys come first and are not editable. Losing the way back matters more than
+                any convenience gained by rebinding it, so they are presented as facts rather than as
+                settings.
+            -->
+            <Border Classes="card">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="ALWAYS AVAILABLE" Classes="cardTitle" />
+
+                    <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" RowSpacing="10" ColumnSpacing="16">
+                        <Border Grid.Row="0" Classes="chord">
+                            <TextBlock Text="Ctrl+Alt+0" Classes="mono" />
+                        </Border>
+                        <TextBlock
+                            Grid.Row="0"
+                            Grid.Column="1"
+                            Text="Return control to this machine"
+                            TextWrapping="Wrap"
+                            VerticalAlignment="Center" />
+
+                        <Border Grid.Row="1" Classes="chord">
+                            <TextBlock Text="Ctrl+Alt+Shift+Esc" Classes="mono" />
+                        </Border>
+                        <TextBlock
+                            Grid.Row="1"
+                            Grid.Column="1"
+                            Text="Panic: release everything and unblock"
+                            TextWrapping="Wrap"
+                            VerticalAlignment="Center" />
+                    </Grid>
+
+                    <TextBlock
+                        Classes="muted"
+                        Text="These cannot be reassigned. The panic key is the way back if anything goes wrong, so it stays where you expect it." />
+                </StackPanel>
+            </Border>
+
+            <Border Classes="card">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="MACHINE SLOTS" Classes="cardTitle" />
+
+                    <!-- Nine rows, always. Nothing here needs virtualising. -->
+                    <ItemsControl x:Name="SlotsView">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Spacing="2" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="pages:SlotRow">
+                                <Border Classes="row">
+                                    <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="12">
+                                        <Border Classes="chord">
+                                            <TextBlock Text="{Binding Chord}" Classes="mono" />
+                                        </Border>
+
+                                        <TextBlock
+                                            Grid.Column="1"
+                                            Text="{Binding Assignment}"
+                                            VerticalAlignment="Center"
+                                            TextTrimming="CharacterEllipsis"
+                                            Opacity="{Binding Opacity}" />
+
+                                        <Button
+                                            Grid.Column="2"
+                                            Content="Assign"
+                                            Classes="ghost"
+                                            VerticalAlignment="Center"
+                                            Tag="{Binding Slot}"
+                                            Click="OnAssignClicked" />
+
+                                        <Button
+                                            Grid.Column="3"
+                                            Content="Clear"
+                                            Classes="ghost"
+                                            VerticalAlignment="Center"
+                                            Classes.vacant="{Binding !IsAssigned}"
+                                            Tag="{Binding Slot}"
+                                            Click="OnClearClicked" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <Button
+                        x:Name="ReloadButton"
+                        Content="Reload"
+                        HorizontalAlignment="Left"
+                        Click="OnReloadClicked" />
+                </StackPanel>
+            </Border>
+
+            <TextBlock x:Name="MessageLabel" Classes="muted" IsVisible="False" />
+
+        </StackPanel>
+    </ScrollViewer>
+
+</UserControl>

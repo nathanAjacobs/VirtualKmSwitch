@@ -1,0 +1,10 @@
+[package]
+name = "vkms-core"
+description = "Input events, the monotonic clock, the SPSC ring and the pure input-engine logic. No networking and no window handles."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+windows-sys.workspace = true

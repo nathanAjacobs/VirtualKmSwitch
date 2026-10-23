@@ -1,0 +1,18 @@
+[package]
+name = "vkms-spike"
+description = "Verification harnesses for the things a build cannot prove: calibrated replay, blocking, hotkeys, and the control pipe."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "vkms-spike"
+path = "src/main.rs"
+
+[dependencies]
+vkms-core.workspace = true
+vkms-win.workspace = true
+vkms-ipc.workspace = true
+vkms-agent = { path = "../vkms-agent" }
+log.workspace = true

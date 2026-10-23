@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- BenchmarkDotNet requires optimized code to produce meaningful numbers. -->
+    <Optimize>true</Optimize>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\VirtualKmSwitch.Core\VirtualKmSwitch.Core.csproj" />
+    <ProjectReference Include="..\..\VirtualKmSwitch.InputEngine\VirtualKmSwitch.InputEngine.csproj" />
+    <ProjectReference Include="..\..\VirtualKmSwitch.Ipc\VirtualKmSwitch.Ipc.csproj" />
+    <ProjectReference Include="..\..\VirtualKmSwitch.Transport\VirtualKmSwitch.Transport.csproj" />
+  </ItemGroup>
+
+</Project>

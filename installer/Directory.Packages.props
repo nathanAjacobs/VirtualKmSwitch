@@ -1,0 +1,18 @@
+<Project>
+
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      On the same version as the projects' WixToolset.Sdk. WiX 5: from 6 the toolset refuses to
+      build until its maintenance-fee EULA is accepted.
+    -->
+    <PackageVersion Include="WixToolset.Bal.wixext" Version="5.0.2" />
+    <PackageVersion Include="WixToolset.Firewall.wixext" Version="5.0.2" />
+    <PackageVersion Include="WixToolset.UI.wixext" Version="5.0.2" />
+    <PackageVersion Include="WixToolset.Util.wixext" Version="5.0.2" />
+  </ItemGroup>
+
+</Project>

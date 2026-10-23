@@ -1,0 +1,67 @@
+<UserControl
+    x:Class="VirtualKmSwitch.Gui.Pages.SettingsPage"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <ScrollViewer>
+        <StackPanel Margin="{StaticResource PagePadding}" Spacing="18">
+
+            <StackPanel Spacing="4">
+                <TextBlock Text="Settings" Classes="title" />
+                <TextBlock
+                    Text="How the controller looks. These are yours alone — nothing here reaches another machine."
+                    Classes="subtitle" />
+            </StackPanel>
+
+            <Border Classes="card">
+                <StackPanel Spacing="14">
+                    <TextBlock Text="APPEARANCE" Classes="cardTitle" />
+
+                    <!--
+                        A segmented control rather than a switch: there are three states, and
+                        "System" is a distinct choice from either fixed theme — it keeps following
+                        Windows rather than copying it once.
+                    -->
+                    <Border
+                        Padding="3"
+                        BorderThickness="1"
+                        CornerRadius="11"
+                        HorizontalAlignment="Left"
+                        BorderBrush="{DynamicResource StrokeBrush}">
+                        <StackPanel Orientation="Horizontal" Spacing="2">
+                            <Button x:Name="SystemSegment" Classes="segment" Content="System" Click="OnSegmentClicked" />
+                            <Button x:Name="LightSegment" Classes="segment" Content="Light" Click="OnSegmentClicked" />
+                            <Button x:Name="DarkSegment" Classes="segment" Content="Dark" Click="OnSegmentClicked" />
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock x:Name="ThemeHintLabel" Classes="muted" Text="Following Windows." />
+                </StackPanel>
+            </Border>
+
+            <Border Classes="card">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="ABOUT" Classes="cardTitle" />
+
+                    <TextBlock
+                        Classes="muted"
+                        Text="This window is a controller. It holds no input and no network code, needs no administrator rights for everyday use, and can be closed at any time — the service and its agents go on working with nobody signed in." />
+
+                    <!-- Paths have no spaces to break at, so they wrap by character rather than run off the card. -->
+                    <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="7" ColumnSpacing="14">
+                        <TextBlock Grid.Row="0" Text="Paired machines" Classes="muted" />
+                        <TextBlock Grid.Row="0" Grid.Column="1" Text="%ProgramData%\VirtualKmSwitch\peers.json" Classes="mono" TextWrapping="Wrap" />
+
+                        <TextBlock Grid.Row="1" Text="Hotkeys" Classes="muted" />
+                        <TextBlock Grid.Row="1" Grid.Column="1" Text="%ProgramData%\VirtualKmSwitch\local.json" Classes="mono" TextWrapping="Wrap" />
+
+                        <TextBlock Grid.Row="2" Text="This page" Classes="muted" />
+                        <TextBlock Grid.Row="2" Grid.Column="1" Text="%LocalAppData%\VirtualKmSwitch\appearance.json" Classes="mono" TextWrapping="Wrap" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+
+</UserControl>

@@ -1,0 +1,12 @@
+[package]
+name = "vkms-win"
+description = "The Win32 layer: message windows, low-level hooks, raw input, injection, desktops, sessions, shared memory and security descriptors."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+vkms-core.workspace = true
+windows-sys.workspace = true
+log.workspace = true

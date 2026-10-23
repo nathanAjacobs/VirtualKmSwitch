@@ -1,0 +1,31 @@
+<Project Sdk="WixToolset.Sdk/5.0.2">
+
+	<!--
+		The setup executable: the MSI behind a Burn bundle, which stops the service before the MSI
+		runs (see Bundle.wxs for why it must). Built by build.ps1 after the MSI, which it packages,
+		so build it through that script rather than on its own.
+	-->
+	<PropertyGroup>
+		<OutputType>Bundle</OutputType>
+
+		<!-- From the workspace's Cargo.toml, passed in by build.ps1. -->
+		<ProductVersion Condition="'$(ProductVersion)' == ''">0.0.0</ProductVersion>
+
+		<!-- Not the MSI's name: both write a .wixpdb beside their output, and one would replace the other. -->
+		<OutputName>VirtualKmSwitch-$(ProductVersion)-x64-setup</OutputName>
+		<InstallerPlatform>x64</InstallerPlatform>
+
+		<RepoRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..'))</RepoRoot>
+		<RustBin Condition="'$(RustBin)' == ''">$(RepoRoot)\src\rust\target\release</RustBin>
+		<MsiFile Condition="'$(MsiFile)' == ''">$(RepoRoot)\target\installer\VirtualKmSwitch-$(ProductVersion)-x64.msi</MsiFile>
+
+		<DefineConstants>ProductVersion=$(ProductVersion);RustBin=$(RustBin);MsiFile=$(MsiFile);AssetsDir=$(RepoRoot)\src\csharp\VirtualKmSwitch.Gui\Assets</DefineConstants>
+
+		<OutputPath>$(RepoRoot)\target\installer\</OutputPath>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="WixToolset.Bal.wixext" />
+	</ItemGroup>
+
+</Project>

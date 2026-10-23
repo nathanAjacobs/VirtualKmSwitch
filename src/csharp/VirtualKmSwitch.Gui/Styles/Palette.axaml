@@ -1,0 +1,101 @@
+<!--
+    Virtual KM Switch's palette, defined once per theme.
+
+    Two rules run through all of it. Every colour exists for both themes and is used through
+    DynamicResource, so the whole window follows a theme change — including one made by Windows
+    while the controller is open — without any code repainting anything. And nothing is coloured
+    for decoration: green, amber and red mean healthy, degraded and broken, and are used for nothing
+    else, so a glance at the window is enough to know whether anything needs attention.
+-->
+<ResourceDictionary xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <ResourceDictionary.ThemeDictionaries>
+
+        <ResourceDictionary x:Key="Light">
+            <SolidColorBrush x:Key="AccentBrush" Color="#5B6CFF" />
+
+            <!-- The tint behind a selected navigation item, and behind emphasis panels. -->
+            <SolidColorBrush x:Key="AccentSoftBrush" Color="#ECEEFF" />
+
+            <!-- Text on the accent. -->
+            <SolidColorBrush x:Key="OnAccentBrush" Color="#FFFFFF" />
+
+            <!--
+                The wash under a hovered navigation item: a tint of the accent rather than neutral
+                grey, which was very nearly invisible against the light rail. It also previews the
+                selected colour, so the row hints at what clicking it will do.
+            -->
+            <SolidColorBrush x:Key="NavHoverBrush" Color="#1C5B6CFF" />
+
+            <!--
+                Three surfaces, one step apart, in the same order in both themes: the rail is
+                recessed, the page sits above it, and cards sit above that. The steps are small —
+                enough that the rail reads as its own surface, not so much that the window looks
+                like two applications bolted together.
+            -->
+            <SolidColorBrush x:Key="RailBgBrush" Color="#F1F3F8" />
+            <SolidColorBrush x:Key="PageBgBrush" Color="#F6F7FB" />
+            <SolidColorBrush x:Key="CardBgBrush" Color="#FFFFFF" />
+
+            <SolidColorBrush x:Key="StrokeBrush" Color="#E4E7F0" />
+            <SolidColorBrush x:Key="HoverBrush" Color="#EDEFF6" />
+
+            <!--
+                The three states of an ordinary filled button. Distinct from the card fill so the
+                control reads as a control wherever it sits; pressed goes darker than rest, which is
+                what "being held" looks like everywhere else on the system.
+            -->
+            <SolidColorBrush x:Key="ControlBrush" Color="#EAEDF5" />
+            <SolidColorBrush x:Key="ControlHoverBrush" Color="#E1E5F0" />
+            <SolidColorBrush x:Key="ControlPressedBrush" Color="#D3D9E8" />
+
+            <SolidColorBrush x:Key="TextBrush" Color="#13161F" />
+            <SolidColorBrush x:Key="MutedBrush" Color="#616A7C" />
+
+            <SolidColorBrush x:Key="PositiveBrush" Color="#15A34A" />
+            <SolidColorBrush x:Key="WarningBrush" Color="#C2710C" />
+            <SolidColorBrush x:Key="NegativeBrush" Color="#D1343C" />
+        </ResourceDictionary>
+
+        <!--
+            Near-neutral charcoal. An earlier dark palette was noticeably blue-violet, which reads as
+            a tint rather than as a surface and fights the accent sitting on top of it.
+        -->
+        <ResourceDictionary x:Key="Dark">
+            <SolidColorBrush x:Key="AccentBrush" Color="#8A97FF" />
+            <SolidColorBrush x:Key="AccentSoftBrush" Color="#1F2440" />
+            <SolidColorBrush x:Key="OnAccentBrush" Color="#0E1016" />
+            <SolidColorBrush x:Key="NavHoverBrush" Color="#1C8A97FF" />
+
+            <SolidColorBrush x:Key="RailBgBrush" Color="#141519" />
+            <SolidColorBrush x:Key="PageBgBrush" Color="#17191F" />
+            <SolidColorBrush x:Key="CardBgBrush" Color="#20232B" />
+
+            <SolidColorBrush x:Key="StrokeBrush" Color="#2A2D35" />
+            <SolidColorBrush x:Key="HoverBrush" Color="#22252D" />
+
+            <SolidColorBrush x:Key="ControlBrush" Color="#272B34" />
+            <SolidColorBrush x:Key="ControlHoverBrush" Color="#313742" />
+            <SolidColorBrush x:Key="ControlPressedBrush" Color="#1E2129" />
+
+            <SolidColorBrush x:Key="TextBrush" Color="#E9ECF4" />
+            <SolidColorBrush x:Key="MutedBrush" Color="#98A1B4" />
+
+            <SolidColorBrush x:Key="PositiveBrush" Color="#34D07F" />
+            <SolidColorBrush x:Key="WarningBrush" Color="#F0B33C" />
+            <SolidColorBrush x:Key="NegativeBrush" Color="#F87171" />
+        </ResourceDictionary>
+
+    </ResourceDictionary.ThemeDictionaries>
+
+    <!-- ==================== Metrics ==================== -->
+
+    <Thickness x:Key="PagePadding">32,8,32,32</Thickness>
+
+    <!--
+        The rail's width, shared with the caption above it so the boundary between rail and page
+        runs unbroken from the top edge of the window to the bottom.
+    -->
+    <x:Double x:Key="RailWidth">228</x:Double>
+
+</ResourceDictionary>

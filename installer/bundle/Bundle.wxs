@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+	The setup executable: stops the service, then installs the MSI.
+
+	The MSI alone cannot upgrade cleanly while the service is running. Restart Manager decides what to
+	close at InstallValidate, before the MSI's StopServices, and the service's session agents are
+	SYSTEM processes in the user's session that it cannot close. Finding them, it closes nothing at
+	all, the controller included: the old controller keeps running from a file moved aside, and the
+	MSI asks for a reboot. Nothing inside an MSI runs elevated that early (immediate custom actions
+	run with the user's own, unelevated token), so the stop comes first, from here, where the whole
+	chain is elevated. With the agents gone, Restart Manager closes the controller and starts it
+	again once the new one is in place.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+	xmlns:bal="http://wixtoolset.org/schemas/v4/wxs/bal">
+
+	<Bundle Name="Virtual KM Switch"
+		Manufacturer="Virtual KM Switch"
+		Version="$(ProductVersion)"
+		UpgradeCode="{EEF49AD6-D100-485A-9042-CC84F5B91AB7}"
+		IconSourceFile="$(AssetsDir)\VirtualKmSwitch.ico">
+
+		<!--
+			The standard UI with its own copy of the theme, which has no licence page (Theme.xml says what
+			changed), matching the MSI's wizard. The standard UI will not start without a licence to
+			point at all the same, so it is given the one Cargo.toml declares. No options page: the
+			install folder is the MSI's default. Launch runs from the unelevated half of setup, so the controller
+			it opens is not elevated; if Restart Manager has already brought one back, the controller's
+			single-instance check shows that one instead.
+		-->
+		<BootstrapperApplication>
+			<bal:WixStandardBootstrapperApplication Theme="hyperlinkLicense"
+				ThemeFile="Theme.xml"
+				LocalizationFile="Theme.wxl"
+				LogoFile="logo.png"
+				LicenseUrl="https://www.gnu.org/licenses/gpl-3.0.html"
+				SuppressOptionsUI="yes"
+				LaunchTarget="[ProgramFiles64Folder]Virtual KM Switch\VirtualKmSwitch.Gui.exe" />
+		</BootstrapperApplication>
+
+		<Chain>
+			<!--
+				The service's own executable, told to stop the installed service: it waits until the service
+				reports stopped, which it does only once its agents have ended, and does nothing if none is
+				installed. Never detected, so it runs on every install and never on uninstall; a rollback
+				runs the uninstall arguments, which start the service again. Not vital: if the stop fails,
+				the MSI still installs, as it would on its own, at the cost of a reboot.
+			-->
+			<ExePackage Id="StopService"
+				SourceFile="$(RustBin)\vkms-service.exe"
+				DetectCondition="false"
+				InstallArguments="--stop"
+				UninstallArguments="--start"
+				PerMachine="yes"
+				Vital="no" />
+
+			<MsiPackage Id="VirtualKmSwitch" SourceFile="$(MsiFile)" />
+		</Chain>
+	</Bundle>
+
+</Wix>

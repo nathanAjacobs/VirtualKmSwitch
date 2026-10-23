@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<!--
+		The controller: Avalonia, unelevated, Windows only. It holds no input and no network code;
+		it talks to the Rust service over the control pipe (Ipc/, wire format in src/rust/crates/vkms-ipc),
+		and its only native code is the tray icon (Native/) and its restart registration.
+	-->
+	<PropertyGroup>
+		<!-- WinExe rather than Exe: a controller should not flash a console window at launch. -->
+		<OutputType>WinExe</OutputType>
+		<RootNamespace>VirtualKmSwitch.Gui</RootNamespace>
+		<AssemblyName>VirtualKmSwitch.Gui</AssemblyName>
+		<ApplicationManifest>app.manifest</ApplicationManifest>
+
+		<!-- Also what the tray icon shows: it extracts the executable's own icon. -->
+		<ApplicationIcon>Assets\VirtualKmSwitch.ico</ApplicationIcon>
+
+		<!-- Bindings are checked at build time, so a misspelt property is an error, not a blank. -->
+		<AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<AvaloniaResource Include="Assets\**" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Avalonia" />
+		<PackageReference Include="Avalonia.Desktop" />
+		<PackageReference Include="Avalonia.Themes.Fluent" />
+
+		<PackageReference Include="Microsoft.Windows.CsWin32">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+	</ItemGroup>
+
+</Project>

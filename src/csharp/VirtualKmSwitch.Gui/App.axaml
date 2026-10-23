@@ -1,0 +1,52 @@
+<Application
+    x:Class="VirtualKmSwitch.Gui.App"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    RequestedThemeVariant="Default">
+
+    <!--
+        "Default" follows Windows, and keeps following it when it changes while the controller is
+        open. The Settings page can pin Light or Dark instead; see AppearanceStore.
+    -->
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="avares://VirtualKmSwitch.Gui/Styles/Palette.axaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <!--
+                Fluent's drawn caption, with two things taken out.
+
+                Its title text: the window extends its content up into the caption and draws its
+                own title there, beside the pane toggle, which Fluent's would otherwise sit on top
+                of. The window keeps its Title, so the taskbar and Alt+Tab still show it.
+
+                Its fullscreen button: a status window has nothing to show fullscreen. The window
+                also refuses the state itself (MainWindow.OnPropertyChanged), so this only removes
+                the button that would ask for it.
+            -->
+            <ControlTheme
+                x:Key="ControllerCaption"
+                TargetType="WindowDrawnDecorations"
+                BasedOn="{StaticResource {x:Type WindowDrawnDecorations}}">
+                <!-- The text, not its panel: the panel's IsVisible is a template binding, which
+                     outranks a style setter, so hiding the panel would quietly do nothing. -->
+                <Style Selector="^ /template/ Panel#PART_TitleTextPanel > TextBlock">
+                    <Setter Property="IsVisible" Value="False" />
+                </Style>
+                <Style Selector="^ /template/ Button#PART_FullScreenButton">
+                    <Setter Property="IsVisible" Value="False" />
+                </Style>
+            </ControlTheme>
+        </ResourceDictionary>
+    </Application.Resources>
+
+    <Application.Styles>
+        <FluentTheme />
+
+        <!-- After Fluent, so these win. -->
+        <StyleInclude Source="avares://VirtualKmSwitch.Gui/Styles/Controls.axaml" />
+    </Application.Styles>
+
+</Application>

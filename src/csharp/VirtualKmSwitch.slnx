@@ -1,0 +1,7 @@
+<Solution>
+  <!--
+    Only the controller is .NET. The service, the session agent and everything they share are the
+    Rust workspace in ../rust, built with `cargo build`.
+  -->
+  <Project Path="VirtualKmSwitch.Gui/VirtualKmSwitch.Gui.csproj" />
+</Solution>

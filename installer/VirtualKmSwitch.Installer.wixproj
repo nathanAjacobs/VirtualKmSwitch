@@ -1,0 +1,39 @@
+<Project Sdk="WixToolset.Sdk/5.0.2">
+
+	<!--
+		The MSI. Packages what build.ps1 has already built (the Rust service and agent from
+		src\rust\target\release, the published controller from target\installer\controller), so build it
+		through that script rather than on its own.
+
+		WiX 5 rather than 6 or later: from 6 the toolset will not build until its maintenance-fee
+		EULA is accepted.
+	-->
+	<PropertyGroup>
+		<!-- From the workspace's Cargo.toml, passed in by build.ps1. -->
+		<ProductVersion Condition="'$(ProductVersion)' == ''">0.0.0</ProductVersion>
+
+		<OutputName>VirtualKmSwitch-$(ProductVersion)-x64</OutputName>
+		<InstallerPlatform>x64</InstallerPlatform>
+
+		<RepoRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..'))</RepoRoot>
+		<RustBin Condition="'$(RustBin)' == ''">$(RepoRoot)\src\rust\target\release</RustBin>
+		<ControllerDir Condition="'$(ControllerDir)' == ''">$(RepoRoot)\target\installer\controller</ControllerDir>
+
+		<DefineConstants>ProductVersion=$(ProductVersion);RustBin=$(RustBin);ControllerDir=$(ControllerDir);AssetsDir=$(RepoRoot)\src\csharp\VirtualKmSwitch.Gui\Assets</DefineConstants>
+
+		<OutputPath>$(RepoRoot)\target\installer\</OutputPath>
+
+		<!-- The SDK compiles every .wxs beneath it, and the setup bundle is a project of its own. -->
+		<DefaultItemExcludes>$(DefaultItemExcludes);bundle\**</DefaultItemExcludes>
+
+		<!-- ICE61 objects to same-version upgrades, which Package.wxs allows on purpose. -->
+		<SuppressIces>ICE61</SuppressIces>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="WixToolset.Firewall.wixext" />
+		<PackageReference Include="WixToolset.UI.wixext" />
+		<PackageReference Include="WixToolset.Util.wixext" />
+	</ItemGroup>
+
+</Project>

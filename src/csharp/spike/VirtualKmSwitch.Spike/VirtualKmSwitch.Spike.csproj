@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Throwaway harness for the two go/no-go spikes in the plan. Not shipped.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\VirtualKmSwitch.Core\VirtualKmSwitch.Core.csproj" />
+    <ProjectReference Include="..\..\VirtualKmSwitch.Interop\VirtualKmSwitch.Interop.csproj" />
+    <ProjectReference Include="..\..\VirtualKmSwitch.InputEngine\VirtualKmSwitch.InputEngine.csproj" />
+    <ProjectReference Include="..\..\VirtualKmSwitch.Ipc\VirtualKmSwitch.Ipc.csproj" />
+  </ItemGroup>
+
+</Project>

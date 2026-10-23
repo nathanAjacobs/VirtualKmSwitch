@@ -1,0 +1,30 @@
+<Project>
+
+  <!-- Applies to the .NET controller only; the service and agent are the Rust workspace. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- The same licence as the Rust workspace's Cargo.toml. -->
+    <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
+  </PropertyGroup>
+
+  <!--
+    A concrete CPU architecture is required, not a preference: CsWin32 refuses to
+    generate architecture-gated APIs (NOTIFYICONDATAW / Shell_NotifyIcon among them)
+    for AnyCPU. Override with -p:PlatformTarget=ARM64 for an arm64 build.
+  -->
+  <PropertyGroup>
+    <!--
+      PlatformTarget only, deliberately without <Platforms>: declaring Platforms makes MSBuild
+      write to bin/x64/... for a solution build while `dotnet run` still defaults to AnyCPU and
+      executes the stale bin/... copy. Build and run then silently diverge.
+    -->
+    <PlatformTarget Condition="'$(PlatformTarget)' == ''">x64</PlatformTarget>
+  </PropertyGroup>
+
+</Project>

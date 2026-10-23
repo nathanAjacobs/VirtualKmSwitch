@@ -1,0 +1,100 @@
+<UserControl
+    x:Class="VirtualKmSwitch.Gui.Pages.DashboardPage"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <ScrollViewer>
+        <StackPanel Margin="{StaticResource PagePadding}" Spacing="18">
+
+            <StackPanel Spacing="4">
+                <TextBlock Text="Status" Classes="title" />
+                <TextBlock Text="One keyboard and mouse across your machines." Classes="subtitle" />
+            </StackPanel>
+
+            <!--
+                Service health first and largest. Everything else in this window is meaningless if
+                the service is not running, so it is stated plainly rather than left to be inferred
+                from an empty list further down.
+            -->
+            <Border Classes="card">
+                <StackPanel Spacing="14">
+                    <TextBlock Text="SERVICE" Classes="cardTitle" />
+
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Border x:Name="ServiceIndicator" Classes="dot" Width="11" Height="11" CornerRadius="6" />
+                        <TextBlock
+                            x:Name="ServiceStatusLabel"
+                            Text="Checking…"
+                            FontSize="17"
+                            FontWeight="Bold"
+                            VerticalAlignment="Center" />
+                    </StackPanel>
+
+                    <TextBlock x:Name="ServiceHintLabel" Classes="muted" IsVisible="False" />
+                </StackPanel>
+            </Border>
+
+            <!--
+                Agents get one chip each rather than a comma-separated list. A missing Winlogon agent
+                is invisible until the moment a UAC prompt appears on a machine you are driving and
+                cannot be answered, so which one is absent has to be readable at a glance.
+
+                The dot used to be a tick or a cross. A cross at the left edge of a pill reads as a
+                dismiss button, and people tried to click it — these report status and do nothing.
+            -->
+            <Border Classes="card">
+                <StackPanel Spacing="14">
+                    <TextBlock Text="INPUT AGENTS" Classes="cardTitle" />
+
+                    <WrapPanel ItemSpacing="10" LineSpacing="10">
+                        <Border Classes="chip">
+                            <StackPanel Orientation="Horizontal" Spacing="9">
+                                <Border x:Name="DefaultAgentDot" Classes="dot" Width="9" Height="9" CornerRadius="5" />
+                                <TextBlock Text="Default desktop" FontSize="13" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Classes="chip">
+                            <StackPanel Orientation="Horizontal" Spacing="9">
+                                <Border x:Name="WinlogonAgentDot" Classes="dot" Width="9" Height="9" CornerRadius="5" />
+                                <TextBlock Text="Secure desktop" FontSize="13" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                    </WrapPanel>
+
+                    <TextBlock
+                        x:Name="AgentsHintLabel"
+                        Classes="muted"
+                        Text="One agent runs per desktop. The secure-desktop agent is what answers UAC prompts." />
+                </StackPanel>
+            </Border>
+
+            <Border Classes="card">
+                <StackPanel Spacing="16">
+                    <TextBlock Text="INPUT FLOW" Classes="cardTitle" />
+
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="20">
+                        <StackPanel Spacing="2">
+                            <TextBlock x:Name="CapturedLabel" Text="—" Classes="metric" />
+                            <TextBlock Text="Captured locally" Classes="muted" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Spacing="2">
+                            <TextBlock x:Name="DeliveredLabel" Text="—" Classes="metric" />
+                            <TextBlock Text="Delivered to agents" Classes="muted" />
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <Button Content="Return control here" Classes="primary" Click="OnReturnControlClicked" />
+                <Button x:Name="RefreshButton" Content="Refresh" Click="OnRefreshClicked" />
+            </StackPanel>
+
+            <TextBlock x:Name="LastActionLabel" Classes="muted" IsVisible="False" />
+
+        </StackPanel>
+    </ScrollViewer>
+
+</UserControl>

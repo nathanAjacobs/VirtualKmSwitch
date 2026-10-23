@@ -1,0 +1,160 @@
+<UserControl
+    x:Class="VirtualKmSwitch.Gui.Pages.MachinesPage"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:pages="clr-namespace:VirtualKmSwitch.Gui.Pages">
+
+    <ScrollViewer>
+        <StackPanel Margin="{StaticResource PagePadding}" Spacing="18">
+
+            <StackPanel Spacing="4">
+                <TextBlock Text="Machines" Classes="title" />
+                <TextBlock
+                    Text="The machines this one is paired with. Each machine keeps its own list; nothing is shared beyond the moment of pairing."
+                    Classes="subtitle" />
+            </StackPanel>
+
+            <!--
+                Pairing is the only thing here that changes whom this machine trusts, and the only
+                thing needing administrator rights. The distinction is stated up front so a refusal
+                later reads as the design working rather than as a fault.
+            -->
+            <Border Classes="card">
+                <StackPanel Spacing="14">
+                    <TextBlock Text="PAIR A MACHINE" Classes="cardTitle" />
+
+                    <TextBlock x:Name="ThisMachineLabel" Text="Reading this machine…" Classes="strong" />
+
+                    <TextBlock x:Name="HealthLabel" Classes="muted" IsVisible="False" />
+
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button
+                            x:Name="ShowCodeButton"
+                            Content="Show a pairing code"
+                            Classes="primary"
+                            Click="OnShowCodeClicked" />
+                        <Button
+                            x:Name="EnterCodeButton"
+                            Content="Enter a code"
+                            Click="OnEnterCodeClicked" />
+                    </StackPanel>
+
+                    <TextBlock
+                        Classes="muted"
+                        Text="Show a code on one machine and type it into the other. Pairing asks for administrator rights, because a paired machine can type into this one." />
+                </StackPanel>
+            </Border>
+
+            <!--
+                The code is shown only while pairing is open. A code that sits permanently on screen
+                is a code that is permanently usable by anyone who walks past.
+            -->
+            <Border x:Name="PairingPanel" Classes="card accent" IsVisible="False">
+                <StackPanel Spacing="10">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Text="WAITING FOR THE OTHER MACHINE" Classes="cardTitle" />
+                        <TextBlock
+                            x:Name="PairingCountdownLabel"
+                            Grid.Column="1"
+                            Classes="mono" />
+                    </Grid>
+
+                    <!-- Large and monospaced, because someone is going to read it out loud. -->
+                    <TextBlock
+                        x:Name="PairingCodeLabel"
+                        FontSize="28"
+                        FontFamily="Consolas"
+                        FontWeight="Bold"
+                        LetterSpacing="2" />
+
+                    <TextBlock
+                        Classes="muted"
+                        Text="On the other machine, choose Enter a code and type this. It works once, and stops working when this closes." />
+
+                    <Button
+                        Content="Cancel"
+                        Classes="ghost danger"
+                        HorizontalAlignment="Left"
+                        Click="OnCancelPairingClicked" />
+                </StackPanel>
+            </Border>
+
+            <Border Classes="card">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="PAIRED MACHINES" Classes="cardTitle" />
+
+                    <TextBlock
+                        x:Name="MachinesEmptyLabel"
+                        Text="Not paired with any machine yet."
+                        Classes="muted"
+                        IsVisible="False" />
+
+                    <!-- A handful of machines at most, so nothing here needs virtualising. -->
+                    <ItemsControl x:Name="MachineList">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Spacing="4" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="pages:MachineRow">
+                                <Border Classes="row">
+                                    <Grid ColumnDefinitions="38,*,Auto,Auto" ColumnSpacing="12">
+
+                                        <Border Grid.Column="0" Classes="tile">
+                                            <TextBlock Text="{Binding Initial}" />
+                                        </Border>
+
+                                        <!--
+                                            Truncated rather than wrapped: a node id is read by its
+                                            first few characters, and wrapping would make every row
+                                            a different height as the window narrows.
+                                        -->
+                                        <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
+                                            <TextBlock
+                                                Text="{Binding DisplayName}"
+                                                Classes="strong"
+                                                FontSize="14"
+                                                TextWrapping="NoWrap"
+                                                TextTrimming="CharacterEllipsis" />
+                                            <TextBlock
+                                                Text="{Binding Detail}"
+                                                Classes="mono"
+                                                FontSize="11"
+                                                TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+
+                                        <Border
+                                            Grid.Column="2"
+                                            Classes="chord"
+                                            Padding="9,4"
+                                            IsVisible="{Binding HasHotkey}">
+                                            <TextBlock Text="{Binding Hotkey}" Classes="mono" FontSize="11" />
+                                        </Border>
+
+                                        <Button
+                                            Grid.Column="3"
+                                            Content="Remove"
+                                            Classes="ghost danger"
+                                            VerticalAlignment="Center"
+                                            Tag="{Binding NodeId}"
+                                            Click="OnRemoveClicked" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <TextBlock
+                        Classes="muted"
+                        Text="Removing a machine stops this one trusting it and clears any hotkey pointing at it, rather than reusing the slot. The other machine keeps its own list until it is removed there too." />
+                </StackPanel>
+            </Border>
+
+            <TextBlock x:Name="MessageLabel" Classes="muted" IsVisible="False" />
+
+        </StackPanel>
+    </ScrollViewer>
+
+</UserControl>

@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+	One per-machine MSI: the service and its agent, the controller, a Start menu shortcut and the
+	firewall rule. What deploy\service.ps1 install does for a development build, done the way Windows
+	Installer can undo and upgrade.
+
+	State in %ProgramData%\VirtualKmSwitch (pairings, this machine's certificate, logs) is written by the
+	service, not installed, so an uninstall leaves it and a reinstall picks the pairings back up.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+	xmlns:fw="http://wixtoolset.org/schemas/v4/wxs/firewall"
+	xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui"
+	xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+
+	<Package Name="Virtual KM Switch"
+		Manufacturer="Virtual KM Switch"
+		Version="$(ProductVersion)"
+		UpgradeCode="{6F1C3B57-2E0A-4C8D-9B41-7D2A5E8F0C93}"
+		Scope="perMachine"
+		Compressed="yes">
+
+		<!--
+			Any newer build replaces an older one in place; pairings survive, being outside the MSI.
+			Same-version too: the version only moves when Cargo.toml's does, so without it a rebuilt
+			MSI would install beside the old one rather than over it.
+		-->
+		<MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="A newer version of Virtual KM Switch is already installed." />
+		<MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+		<!-- Matches the service's own requirement: Windows 10 1809. -->
+		<Launch Condition="Installed OR WINDOWSBUILDNUMBER &gt;= 17763"
+			Message="Virtual KM Switch requires Windows 10 version 1809 or later." />
+		<Property Id="WINDOWSBUILDNUMBER" Secure="yes">
+			<RegistrySearch Root="HKLM" Key="SOFTWARE\Microsoft\Windows NT\CurrentVersion" Name="CurrentBuildNumber" Type="raw" />
+		</Property>
+
+		<Icon Id="VirtualKmSwitch.ico" SourceFile="$(AssetsDir)\VirtualKmSwitch.ico" />
+		<Property Id="ARPPRODUCTICON" Value="VirtualKmSwitch.ico" />
+
+		<StandardDirectory Id="ProgramFiles64Folder">
+			<Directory Id="INSTALLFOLDER" Name="Virtual KM Switch" />
+		</StandardDirectory>
+
+		<Feature Id="Main" Title="Virtual KM Switch">
+			<ComponentGroupRef Id="Service" />
+			<ComponentGroupRef Id="Controller" />
+		</Feature>
+
+		<!--
+			The wizard, without its licence page: welcome, folder, install, finish, with an offer to
+			open the controller at the end.
+		-->
+		<ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+		<UI>
+			<Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg" Order="2" />
+			<Publish Dialog="InstallDirDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="2" />
+			<Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchController"
+				Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 AND NOT Installed" />
+		</UI>
+		<Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Open Virtual KM Switch" />
+		<Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
+
+		<!--
+			From the UI sequence, so it runs in the client process as the person installing: the
+			controller is asInvoker and has no business inheriting the installer's elevation.
+		-->
+		<Property Id="WixShellExecTarget" Value="[#VirtualKmSwitch.Gui.exe]" />
+		<CustomAction Id="LaunchController" DllEntry="WixShellExec" Impersonate="yes" BinaryRef="Wix4UtilCA_X64" />
+	</Package>
+
+	<Fragment>
+		<ComponentGroup Id="Service" Directory="INSTALLFOLDER">
+			<Component>
+				<File Id="vkms_service.exe" Source="$(RustBin)\vkms-service.exe" KeyPath="yes">
+					<!--
+						Inbound for the service executable only, on private and domain networks: the mesh
+						(TCP 42100), pairing (TCP 42101) and discovery (UDP 42099) all live in that
+						process. Two rules because the extension takes one profile per rule.
+					-->
+					<fw:FirewallException Id="FirewallPrivate" Name="Virtual KM Switch (Private)"
+						Description="Virtual KM Switch mesh, pairing and discovery."
+						Scope="any" Profile="private" />
+					<fw:FirewallException Id="FirewallDomain" Name="Virtual KM Switch (Domain)"
+						Description="Virtual KM Switch mesh, pairing and discovery."
+						Scope="any" Profile="domain" />
+				</File>
+
+				<!--
+					LocalSystem, and nothing less will do: only SYSTEM can create Global objects, place
+					a process in another session, or touch the Winlogon desktop.
+				-->
+				<ServiceInstall Name="VirtualKmSwitch"
+					DisplayName="Virtual KM Switch Input Service"
+					Description="Shares one keyboard and mouse across paired machines on the LAN."
+					Type="ownProcess" Start="auto" ErrorControl="normal" Account="LocalSystem" Vital="yes" />
+				<ServiceControl Id="VirtualKmSwitchControl" Name="VirtualKmSwitch" Start="install" Stop="both" Remove="uninstall" Wait="yes" />
+			</Component>
+
+			<!-- Next to the service: the supervisor launches it from the service's own directory. -->
+			<Component>
+				<File Id="vkms_agent.exe" Source="$(RustBin)\vkms-agent.exe" KeyPath="yes" />
+			</Component>
+		</ComponentGroup>
+
+		<!--
+			The controller, self-contained so the machine needs no .NET runtime: one executable plus
+			the native Skia, HarfBuzz and ANGLE libraries it loads from beside itself.
+		-->
+		<ComponentGroup Id="Controller" Directory="INSTALLFOLDER">
+			<Component>
+				<File Id="VirtualKmSwitch.Gui.exe" Source="$(ControllerDir)\VirtualKmSwitch.Gui.exe" KeyPath="yes">
+					<Shortcut Id="ControllerShortcut" Directory="ProgramMenuFolder" Name="Virtual KM Switch"
+						Description="Pair machines, assign hotkeys and check the service."
+						WorkingDirectory="INSTALLFOLDER" Advertise="yes" Icon="VirtualKmSwitch.ico" />
+				</File>
+			</Component>
+
+			<Files Include="$(ControllerDir)\*.dll" />
+		</ComponentGroup>
+	</Fragment>
+
+</Wix>

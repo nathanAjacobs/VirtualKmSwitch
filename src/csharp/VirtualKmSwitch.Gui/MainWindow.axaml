@@ -1,0 +1,172 @@
+<Window
+    x:Class="VirtualKmSwitch.Gui.MainWindow"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:chrome="clr-namespace:Avalonia.Controls.Chrome;assembly=Avalonia.Controls"
+    Title="Virtual KM Switch"
+    Icon="avares://VirtualKmSwitch.Gui/Assets/VirtualKmSwitch.ico"
+    Width="720"
+    Height="760"
+    MinWidth="640"
+    MinHeight="560"
+    WindowStartupLocation="CenterScreen"
+    ExtendClientAreaToDecorationsHint="True"
+    ExtendClientAreaTitleBarHeightHint="40"
+    WindowDecorationsTheme="{StaticResource ControllerCaption}">
+
+    <!--
+        The content is extended up into the title bar, so the rail's surface and divider continue
+        through the caption and the boundary between rail and page runs unbroken from the top edge
+        of the window to the bottom. The caption buttons are still the system's own.
+
+        The navigation rail is a fixed 228 wide, so it is the content column that runs out first;
+        below the minimum width the machine and hotkey rows start dropping their buttons off the
+        edge, and a row whose Remove button cannot be reached is worse than a window that refuses to
+        get smaller.
+    -->
+    <Window.Styles>
+        <!-- Set here rather than on the element: a local value would outrank the collapsed style. -->
+        <Style Selector="Border#Rail">
+            <Setter Property="Background" Value="{DynamicResource RailBgBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource StrokeBrush}" />
+            <Setter Property="BorderThickness" Value="0,0,1,0" />
+        </Style>
+
+        <!-- With the rail closed there is no boundary to continue, so neither surface nor edge. -->
+        <Style Selector="Border#Rail.collapsed">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+    </Window.Styles>
+
+    <Grid ColumnDefinitions="Auto,*" RowDefinitions="40,*">
+
+        <!-- The page's half of the caption: just somewhere to drag the window by. -->
+        <Border
+            Grid.Row="0"
+            Grid.Column="1"
+            Background="Transparent"
+            chrome:WindowDecorationProperties.ElementRole="TitleBar" />
+
+        <!--
+            The rail, from the top of the window down. When it is closed it collapses to just the
+            toggle, and the page colour shows through behind it.
+        -->
+        <Border
+            x:Name="Rail"
+            Grid.Row="0"
+            Grid.RowSpan="2"
+            Grid.Column="0"
+            Width="{StaticResource RailWidth}">
+
+            <Grid RowDefinitions="40,Auto,*,Auto">
+
+                <!-- The rail's half of the caption: somewhere to drag by, under the toggle. -->
+                <Border
+                    Grid.Row="0"
+                    Background="Transparent"
+                    chrome:WindowDecorationProperties.ElementRole="TitleBar" />
+
+                <!-- Wordmark -->
+                <StackPanel
+                    x:Name="Wordmark"
+                    Grid.Row="1"
+                    Orientation="Horizontal"
+                    Spacing="11"
+                    Margin="24,4,14,18">
+                    <Border Width="30" Height="30" CornerRadius="9" Background="{DynamicResource AccentBrush}">
+                        <TextBlock
+                            Text="K"
+                            FontSize="16"
+                            FontWeight="Bold"
+                            Foreground="{DynamicResource OnAccentBrush}"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center" />
+                    </Border>
+
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Virtual KM Switch" FontSize="15" FontWeight="Bold" />
+                        <TextBlock Text="Controller" Classes="muted" FontSize="11" />
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel x:Name="Destinations" Grid.Row="2" Spacing="3" Margin="14,0">
+                    <Button x:Name="StatusNav" Classes="nav" Click="OnNavClicked">
+                        <Grid ColumnDefinitions="26,*" ColumnSpacing="8">
+                            <TextBlock Classes="icon" Text="&#xE9D9;" />
+                            <TextBlock Grid.Column="1" Text="Status" VerticalAlignment="Center" />
+                        </Grid>
+                    </Button>
+
+                    <Button x:Name="MachinesNav" Classes="nav" Click="OnNavClicked">
+                        <Grid ColumnDefinitions="26,*" ColumnSpacing="8">
+                            <TextBlock Classes="icon" Text="&#xE977;" />
+                            <TextBlock Grid.Column="1" Text="Machines" VerticalAlignment="Center" />
+                        </Grid>
+                    </Button>
+
+                    <Button x:Name="HotkeysNav" Classes="nav" Click="OnNavClicked">
+                        <Grid ColumnDefinitions="26,*" ColumnSpacing="8">
+                            <TextBlock Classes="icon" Text="&#xE765;" />
+                            <TextBlock Grid.Column="1" Text="Hotkeys" VerticalAlignment="Center" />
+                        </Grid>
+                    </Button>
+
+                    <Button x:Name="SettingsNav" Classes="nav" Click="OnNavClicked">
+                        <Grid ColumnDefinitions="26,*" ColumnSpacing="8">
+                            <TextBlock Classes="icon" Text="&#xE713;" />
+                            <TextBlock Grid.Column="1" Text="Settings" VerticalAlignment="Center" />
+                        </Grid>
+                    </Button>
+                </StackPanel>
+
+                <!--
+                    The footer says the one thing worth knowing without opening a page: whether
+                    closing this window would stop anything. It would not.
+                -->
+                <StackPanel x:Name="RailFooter" Grid.Row="3" Spacing="12" Margin="24,12,24,14">
+                    <Border Classes="divider" Height="1" />
+                    <TextBlock
+                        Text="Closing this window keeps the service running."
+                        Classes="muted"
+                        FontSize="11" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!--
+            The caption's own content: the pane toggle and the window title. It spans both columns
+            and sits above the rail rather than inside it, so neither disappears when the rail
+            closes; the title simply runs on over the page. The title ignores the pointer, so
+            dragging by it drags the window through the caption strips underneath.
+        -->
+        <StackPanel
+            Grid.Row="0"
+            Grid.Column="0"
+            Grid.ColumnSpan="2"
+            ZIndex="1"
+            Orientation="Horizontal"
+            Spacing="10"
+            Margin="8,0,0,0"
+            HorizontalAlignment="Left"
+            VerticalAlignment="Center">
+            <Button
+                x:Name="PaneToggle"
+                Classes="paneToggle"
+                VerticalAlignment="Center"
+                ToolTip.Tip="Show or hide navigation"
+                chrome:WindowDecorationProperties.ElementRole="User"
+                Click="OnPaneToggleClicked" />
+
+            <TextBlock
+                Text="{Binding $parent[Window].Title}"
+                FontSize="12"
+                VerticalAlignment="Center"
+                IsHitTestVisible="False" />
+        </StackPanel>
+
+        <!-- The page. Sits under the caption row's transparent strip, not inside it. -->
+        <ContentControl x:Name="PageHost" Grid.Row="1" Grid.Column="1" />
+    </Grid>
+
+</Window>

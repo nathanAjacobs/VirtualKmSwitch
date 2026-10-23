@@ -1,0 +1,26 @@
+[package]
+name = "vkms-net"
+description = "The peer transport: framing, clock sync, mutual TLS with pinned certificates, the mesh, discovery and pairing."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+vkms-core.workspace = true
+vkms-win.workspace = true
+log.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+base64.workspace = true
+ring.workspace = true
+rustls.workspace = true
+tokio-rustls.workspace = true
+rcgen.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+socket2.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
