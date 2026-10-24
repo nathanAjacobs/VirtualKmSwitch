@@ -15,6 +15,11 @@ use crate::shared_ring::SharedMemoryRing;
 /// swallow local input and forward it.
 const ENGAGED: u32 = 1;
 
+/// Bit in the inject ring's control word: do not give the foreground to the focus decoy while
+/// blocking. A bit for "off" rather than "on", so a freshly created ring -- all zeroes -- means the
+/// default.
+const FOCUS_DECOY_OFF: u32 = 2;
+
 pub struct AgentChannel {
     desktop: String,
 
@@ -81,6 +86,25 @@ impl AgentChannel {
     /// Whether the service says this machine is driving another. Agent side.
     pub fn engaged(&self) -> bool {
         self.to_agent.control_word().load(Ordering::Acquire) & ENGAGED != 0
+    }
+
+    /// Tells the agent whether to use the focus decoy while blocking. Service side.
+    pub fn set_focus_decoy(&self, enabled: bool) {
+        let word = self.to_agent.control_word();
+        let previous = if enabled {
+            word.fetch_and(!FOCUS_DECOY_OFF, Ordering::AcqRel)
+        } else {
+            word.fetch_or(FOCUS_DECOY_OFF, Ordering::AcqRel)
+        };
+
+        if (previous & FOCUS_DECOY_OFF == 0) != enabled {
+            self.to_agent.signal_data_available();
+        }
+    }
+
+    /// Whether the agent should use the focus decoy while blocking. Agent side.
+    pub fn focus_decoy_enabled(&self) -> bool {
+        self.to_agent.control_word().load(Ordering::Acquire) & FOCUS_DECOY_OFF == 0
     }
 }
 

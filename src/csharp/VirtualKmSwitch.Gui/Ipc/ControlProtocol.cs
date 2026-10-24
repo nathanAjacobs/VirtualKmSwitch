@@ -22,6 +22,11 @@ public enum ControlVerb
     Disengage,
     GetHotkeys,
     SetHotkeys,
+
+    // This machine's own options, such as the focus decoy.
+    GetSettings,
+    SetSettings,
+
     GetMachines,
 
     // Closing pairing early only narrows who may pair, so it needs no rights.

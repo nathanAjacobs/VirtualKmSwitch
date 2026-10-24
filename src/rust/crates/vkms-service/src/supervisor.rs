@@ -10,6 +10,7 @@
 
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError};
 use std::sync::{Arc, Mutex, RwLock};
 use std::thread::JoinHandle;
@@ -35,14 +36,33 @@ const MAX_RESTART_BACKOFF: Duration = Duration::from_secs(30);
 ///
 /// Replaced whole when an agent comes or goes, and read on every input event, so readers take a
 /// read lock and never copy the list.
-#[derive(Default)]
 pub struct AgentChannels {
     list: RwLock<Vec<Arc<AgentChannel>>>,
+
+    /// Kept here rather than only in each channel, so an agent started later -- or restarted, with
+    /// a fresh ring -- is told too.
+    focus_decoy: AtomicBool,
+}
+
+impl Default for AgentChannels {
+    fn default() -> Self {
+        Self { list: RwLock::new(Vec::new()), focus_decoy: AtomicBool::new(true) }
+    }
 }
 
 impl AgentChannels {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Whether agents use the focus decoy while blocking, now and for any that start later.
+    pub fn set_focus_decoy(&self, enabled: bool) {
+        self.focus_decoy.store(enabled, Ordering::Release);
+        self.with(|channels| {
+            for channel in channels {
+                channel.set_focus_decoy(enabled);
+            }
+        });
     }
 
     /// Runs `body` over the current channels.
@@ -59,6 +79,11 @@ impl AgentChannels {
     }
 
     pub fn set(&self, channels: Vec<Arc<AgentChannel>>) {
+        let focus_decoy = self.focus_decoy.load(Ordering::Acquire);
+        for channel in &channels {
+            channel.set_focus_decoy(focus_decoy);
+        }
+
         *self.list.write().unwrap_or_else(|poisoned| poisoned.into_inner()) = channels;
     }
 }

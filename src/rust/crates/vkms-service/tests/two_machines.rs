@@ -397,6 +397,39 @@ async fn hotkeys_can_only_point_at_paired_machines() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn the_focus_decoy_setting_is_saved_and_reaches_the_agents() {
+    let machine = Machine::start("Decoy").await;
+
+    let initial = machine.ask(ControlRequest::new(ControlVerb::GetSettings)).await;
+    assert_eq!(Some("true"), initial.value("focusDecoy"), "on by default");
+    assert!(machine.agent.focus_decoy_enabled());
+
+    let off = machine.ask(ControlRequest::new(ControlVerb::SetSettings).with("focusDecoy", "false")).await;
+    assert!(off.success);
+    assert_eq!(Some("false"), off.value("focusDecoy"));
+    assert!(!machine.agent.focus_decoy_enabled());
+    assert!(!machine.service().registry.settings().load().focus_decoy_enabled);
+
+    // An agent started after the change, as after a restart, is told too.
+    let restarted = Arc::new(
+        AgentChannel::create(&format!("TestDecoy{}", &Uuid::new_v4().simple().to_string()[..8]), std::process::id(), 1024, false, false)
+            .expect("a local agent channel"),
+    );
+    machine.service().channels.set(vec![Arc::clone(&restarted)]);
+    assert!(!restarted.focus_decoy_enabled());
+
+    let nonsense = machine.ask(ControlRequest::new(ControlVerb::SetSettings).with("focusDecoy", "maybe")).await;
+    assert!(!nonsense.success);
+    assert!(!restarted.focus_decoy_enabled(), "a refused change leaves the setting alone");
+
+    let on = machine.ask(ControlRequest::new(ControlVerb::SetSettings).with("focusDecoy", "true")).await;
+    assert!(on.success);
+    assert!(restarted.focus_decoy_enabled());
+
+    machine.stop().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn the_controller_reaches_the_service_over_the_real_pipe() {
     let alice = Machine::start("Alice").await;
     let pipe = alice.pipe.clone();

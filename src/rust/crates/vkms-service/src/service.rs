@@ -76,6 +76,7 @@ pub async fn start(options: ServiceOptions) -> io::Result<RunningService> {
 
     // Shared by the supervisor, which fills it, and the router, which reads it on every event.
     let channels = Arc::new(AgentChannels::new());
+    channels.set_focus_decoy(registry.settings().load().focus_decoy_enabled);
     let router = Arc::new(InputRouter::new(Arc::clone(&channels)));
     let remote = Arc::new(RemoteInput::new(Arc::clone(&router)));
     let mesh = MeshHost::new(Arc::clone(&registry), Arc::clone(&router), remote, options.mesh.clone());

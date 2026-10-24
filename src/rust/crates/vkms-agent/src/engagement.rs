@@ -42,6 +42,9 @@ struct Inner {
     /// Holds the foreground while engaged. Blocking leaves raw mouse input flowing, and a game that
     /// reads it would otherwise keep responding locally for as long as its window is active.
     decoy: FocusDecoy,
+
+    /// Whether the decoy is used at all; a setting of this machine's, applied by the service.
+    decoy_enabled: AtomicBool,
 }
 
 impl Inner {
@@ -157,6 +160,7 @@ impl EngagementController {
             held: HeldKeyTracker::new(),
             engaged,
             decoy: FocusDecoy::new()?,
+            decoy_enabled: AtomicBool::new(true),
         });
 
         // Hooks first: they must be in place before raw input starts delivering, or the first
@@ -195,13 +199,32 @@ impl EngagementController {
                 InputInjector::release_virtual_key(virtual_key);
             }
 
-            self.inner.decoy.show();
+            if self.inner.decoy_enabled.load(Ordering::Acquire) {
+                self.inner.decoy.show();
+            }
+
             log::info!("blocking local input; it is being forwarded");
         } else {
             self.inner.decoy.hide();
             self.inner.flush_releases();
             log::info!("local input returned to this machine");
         }
+    }
+
+    /// Applies the service's setting for whether the focus decoy is used. Takes effect at once, even
+    /// while blocking: turning it off hands the foreground back, and turning it on takes it.
+    pub fn set_focus_decoy_enabled(&self, enabled: bool) {
+        if self.inner.decoy_enabled.swap(enabled, Ordering::AcqRel) == enabled {
+            return;
+        }
+
+        if !enabled {
+            self.inner.decoy.hide();
+        } else if self.is_engaged() {
+            self.inner.decoy.show();
+        }
+
+        log::info!("focus decoy {}", if enabled { "enabled" } else { "disabled" });
     }
 
     /// Releases everything and unblocks, as the panic hotkey does.

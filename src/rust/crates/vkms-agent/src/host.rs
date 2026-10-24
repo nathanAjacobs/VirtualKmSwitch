@@ -217,6 +217,10 @@ impl Shared {
         // overridden a moment later by a stale "engaged" from a service that may be wedged.
         let mut last_engaged = false;
 
+        // A setting rather than a decision, but carried the same way and applied the same way: on
+        // change. The controller starts with it on, which is also what an all-zero word means.
+        let mut last_focus_decoy = true;
+
         while !self.stop.load(Ordering::Acquire) {
             self.channel.to_agent.wait_for_data(Duration::from_millis(100));
 
@@ -224,6 +228,12 @@ impl Shared {
             if engaged != last_engaged {
                 controller.set_engaged(engaged);
                 last_engaged = engaged;
+            }
+
+            let focus_decoy = self.channel.focus_decoy_enabled();
+            if focus_decoy != last_focus_decoy {
+                controller.set_focus_decoy_enabled(focus_decoy);
+                last_focus_decoy = focus_decoy;
             }
 
             loop {

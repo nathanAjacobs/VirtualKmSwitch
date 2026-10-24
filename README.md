@@ -192,7 +192,7 @@ If a machine is removed, any hotkey pointing at it becomes **unassigned** rather
 | Path | Contents |
 |---|---|
 | `%ProgramData%\VirtualKmSwitch\peers.json` (+ `.bak`) | The machines this one is paired with. |
-| `%ProgramData%\VirtualKmSwitch\local.json` | This machine's node id and hotkey bindings. |
+| `%ProgramData%\VirtualKmSwitch\local.json` | This machine's node id, hotkey bindings and options (such as the focus decoy). |
 | `%ProgramData%\VirtualKmSwitch\node.crt`, `node.key` | This machine's TLS certificate, and its private key encrypted with DPAPI. |
 | `%ProgramData%\VirtualKmSwitch\service.log`, `agent.*.log` | Logs. |
 

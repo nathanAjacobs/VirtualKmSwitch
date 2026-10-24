@@ -193,6 +193,11 @@ Consequences:
   (`vkms-agent --focus-decoy`) that owns the window, and tells it show or hide over its standard
   input. When that input closes, because the agent exits or is killed, the helper hands the
   foreground back and exits too.
+- **The decoy is an option, on by default.** It is kept in `local.json` and changed from the
+  controller's Settings page (`GetSettings` / `SetSettings`, runtime tier, since it affects only this
+  machine). The service carries it to the agents as a second bit in the inject ring's control word,
+  next to the engaged bit, and that bit means *off*, so a fresh ring of all zeroes means the
+  default.
 - Both sources stamp the performance counter at capture. It is used rather than Rust's `Instant`
   because the stamp has to mean the same thing in the agent that takes it and the service that
   converts it, and `Instant` keeps its origin private.
@@ -483,7 +488,7 @@ drops its open link, since revoking the pin only stops new ones.
 | File | Contents |
 |---|---|
 | `%ProgramData%\VirtualKmSwitch\peers.json` (+ `.bak`) | The machines this one is paired with: node id, certificate thumbprint, name, last address. |
-| `%ProgramData%\VirtualKmSwitch\local.json` | This machine's node id and hotkey bindings. |
+| `%ProgramData%\VirtualKmSwitch\local.json` | This machine's node id, hotkey bindings and options (such as the focus decoy). |
 | `%ProgramData%\VirtualKmSwitch\node.crt`, `node.key` | This machine's certificate, and its private key encrypted with DPAPI. |
 | `%ProgramData%\VirtualKmSwitch\*.log` | Service and per-desktop agent logs. |
 
