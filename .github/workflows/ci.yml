@@ -1,0 +1,82 @@
+# Tests every push and pull request; on a push, also builds the setup and uploads it as an artifact,
+# to download from the run's Summary page.
+
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+# A newer push to the same branch or PR supersedes a run still in progress.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  test:
+    name: Test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Rust
+        run: rustup toolchain install stable --profile minimal && rustup default stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src/rust
+
+      - name: Rust tests
+        working-directory: src/rust
+        run: cargo test --workspace --locked
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.4xx'
+
+      # The controller has no tests of its own; building it (warnings are errors) is the check.
+      - name: Build controller
+        working-directory: src/csharp
+        run: dotnet build VirtualKmSwitch.slnx -c Release
+
+  installer:
+    name: Installer
+    if: github.event_name != 'pull_request'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Rust
+        run: rustup toolchain install stable --profile minimal && rustup default stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src/rust
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.4xx'
+
+      - name: Build setup
+        run: powershell -ExecutionPolicy Bypass -File installer\build.ps1
+
+      - name: Short commit id
+        id: sha
+        shell: bash
+        run: echo "short=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: VirtualKmSwitch-${{ steps.sha.outputs.short }}-x64
+          path: |
+            target/installer/*-setup.exe
+            target/installer/*.msi
+          if-no-files-found: error
+          retention-days: 30
