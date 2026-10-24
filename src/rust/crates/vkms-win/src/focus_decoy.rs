@@ -8,8 +8,20 @@
 //!
 //! It exists only while wanted -- created on show, destroyed on hide -- and is a layered tool window
 //! with zero alpha: nothing drawn, no hit testing, no taskbar button, no Alt+Tab entry.
+//!
+//! **It lives in a helper process, never in the one that owns the hooks.** While a window belonging
+//! to a process holds the foreground, Windows does not call that process's low-level keyboard hook,
+//! and keys go straight past it. A decoy inside the agent therefore blinded the hook to every hotkey,
+//! panic included, for exactly as long as it was blocking. Measured: with the hooking process's own
+//! window in front no chord was ever seen, and Ctrl+Alt+Shift+Esc reached the desktop as Alt+Esc.
+//!
+//! The host is a copy of the same executable started with [`HOST_FLAG`]. The parent sends it one
+//! byte per change over its standard input, and closing that input -- deliberately, or by exiting --
+//! makes the host hand the foreground back, destroy the decoy and exit.
 
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
+use std::io::{Read, Write};
+use std::process::{Child, Command, Stdio};
 use std::ptr::{null, null_mut};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -19,7 +31,8 @@ use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::System::Threading::GetCurrentThreadId;
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::SetFocus;
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    BringWindowToTop, CreateWindowExW, DefWindowProcW, DestroyWindow, GetForegroundWindow, IsWindow, RegisterClassExW, SetForegroundWindow, SetLayeredWindowAttributes,
+    AllowSetForegroundWindow, BringWindowToTop, CreateWindowExW, DefWindowProcW, DestroyWindow,
+    GetForegroundWindow, IsWindow, RegisterClassExW, SetForegroundWindow, SetLayeredWindowAttributes,
     ShowWindow, UnregisterClassW, LWA_ALPHA, SW_SHOWNA, WM_APP, WM_DESTROY, WNDCLASSEXW, WS_EX_LAYERED,
     WS_EX_TOOLWINDOW, WS_EX_TRANSPARENT, WS_POPUP,
 };
@@ -27,34 +40,47 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
 use crate::message_window::MessageWindow;
 use crate::{wide, Win32Error};
 
-/// Posted to make the window thread match the decoy to what is currently wanted.
+/// The argument that starts a process as a decoy host. Any executable that creates a [`FocusDecoy`]
+/// must check for it before doing anything else and hand over to [`run_host`].
+pub const HOST_FLAG: &str = "--focus-decoy";
+
+/// Posted to make a window thread act on a change: to the relay in the parent, or to the decoy's
+/// thread in the host, where `wparam` carries the state.
 const WM_APP_SYNC: u32 = WM_APP + 20;
+
+const SHOW: u8 = b'1';
+const HIDE: u8 = b'0';
 
 pub struct FocusDecoy {
     wanted: Arc<AtomicBool>,
-    window: MessageWindow,
+    relay: MessageWindow,
 }
 
 impl FocusDecoy {
-    /// Starts the thread that will own the decoy. No decoy exists until [`show`](Self::show).
+    /// Starts the host process, and the thread that talks to it. No decoy exists until
+    /// [`show`](Self::show).
     pub fn new() -> Result<Self, Win32Error> {
         let wanted = Arc::new(AtomicBool::new(false));
-        let for_window = Arc::clone(&wanted);
-        let decoy = Decoy::default();
+        let for_relay = Arc::clone(&wanted);
 
-        // A window belongs to the thread that created it and is destroyed there, so the decoy lives
-        // on a thread of its own rather than on one of the input threads, whose budgets it would eat.
-        let window = MessageWindow::new(
-            "FocusDecoy",
+        // Started now rather than on the first show, so engaging never waits for a process launch
+        // while the game is still reading the mouse.
+        let host = HostProcess::default();
+        host.ensure_running();
+
+        // Writing to a pipe is I/O, which show and hide may not do: they are called from the hook
+        // and raw-input threads. So they post here, and this thread writes.
+        let relay = MessageWindow::new(
+            "FocusDecoyRelay",
             false,
             Box::new(move |_hwnd: HWND, message, _wparam, _lparam| match message {
                 WM_APP_SYNC => {
-                    decoy.sync(for_window.load(Ordering::Acquire));
+                    host.send(for_relay.load(Ordering::Acquire));
                     Some(0)
                 }
 
                 WM_DESTROY => {
-                    decoy.sync(false);
+                    host.stop();
                     None
                 }
 
@@ -62,7 +88,7 @@ impl FocusDecoy {
             }),
         )?;
 
-        Ok(Self { wanted, window })
+        Ok(Self { wanted, relay })
     }
 
     /// Creates the decoy and gives it the foreground. Non-blocking; safe from a hook callback.
@@ -81,13 +107,121 @@ impl FocusDecoy {
             return;
         }
 
-        // The message carries no state: the window thread reads `wanted` when it gets there, so a
-        // show and a hide racing from different threads still settle on whichever was last.
-        self.window.post(WM_APP_SYNC, 0, 0);
+        // The message carries no state: the relay reads `wanted` when it gets there, so a show and a
+        // hide racing from different threads still settle on whichever was last.
+        self.relay.post(WM_APP_SYNC, 0, 0);
     }
 }
 
-/// Owned by the window thread.
+/// The parent's handle on the host. Owned by the relay thread.
+#[derive(Default)]
+struct HostProcess {
+    child: RefCell<Option<Child>>,
+}
+
+impl HostProcess {
+    fn send(&self, wanted: bool) {
+        // A host that has died is replaced once, rather than leaving every later engagement without
+        // a decoy.
+        for _ in 0..2 {
+            self.ensure_running();
+
+            let mut child = self.child.borrow_mut();
+            let Some(host) = child.as_mut() else {
+                return;
+            };
+
+            if wanted {
+                // The host is a separate process with no right of its own to take the foreground, so
+                // this process lends it whatever right it has.
+                unsafe { AllowSetForegroundWindow(host.id()) };
+            }
+
+            let byte = if wanted { SHOW } else { HIDE };
+            let written = host.stdin.as_mut().is_some_and(|stdin| stdin.write_all(&[byte]).and_then(|()| stdin.flush()).is_ok());
+            if written {
+                return;
+            }
+
+            log::warn!("the focus decoy host has stopped; restarting it");
+            *child = None;
+        }
+    }
+
+    fn ensure_running(&self) {
+        if self.child.borrow().is_some() {
+            return;
+        }
+
+        match spawn_host() {
+            Ok(host) => *self.child.borrow_mut() = Some(host),
+            Err(error) => log::warn!("could not start the focus decoy host: {error}"),
+        }
+    }
+
+    /// Closing the host's input is its signal to hand the foreground back, destroy the decoy and exit.
+    fn stop(&self) {
+        if let Some(mut host) = self.child.borrow_mut().take() {
+            drop(host.stdin.take());
+        }
+    }
+}
+
+/// This executable again, with this process's arguments, so the host can name its log after the same
+/// desktop.
+fn spawn_host() -> std::io::Result<Child> {
+    Command::new(std::env::current_exe()?)
+        .arg(HOST_FLAG)
+        .args(std::env::args_os().skip(1))
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+}
+
+/// The host process's whole life: shows and hides the decoy as the parent asks, and returns once the
+/// parent closes standard input, with the foreground handed back and the decoy destroyed.
+pub fn run_host() -> Result<(), Win32Error> {
+    let decoy = Decoy::default();
+
+    // A window belongs to the thread that created it and is destroyed there, so the decoy gets a
+    // thread with a pump of its own while this one blocks reading the parent.
+    let window = MessageWindow::new(
+        "FocusDecoy",
+        false,
+        Box::new(move |_hwnd: HWND, message, wparam, _lparam| match message {
+            WM_APP_SYNC => {
+                decoy.sync(wparam != 0);
+                Some(0)
+            }
+
+            WM_DESTROY => {
+                decoy.sync(false);
+                None
+            }
+
+            _ => None,
+        }),
+    )?;
+
+    let mut input = std::io::stdin().lock();
+    let mut byte = [0u8; 1];
+
+    // End of input and a read error mean the same thing: the parent is gone.
+    while let Ok(1) = input.read(&mut byte) {
+        match byte[0] {
+            SHOW => window.post(WM_APP_SYNC, 1, 0),
+            HIDE => window.post(WM_APP_SYNC, 0, 0),
+            _ => continue,
+        };
+    }
+
+    // Dropping the window destroys it on its own thread, and WM_DESTROY takes the decoy down first.
+    drop(window);
+    Ok(())
+}
+
+/// The decoy itself, owned by the host process's window thread.
 #[derive(Default)]
 struct Decoy {
     /// The decoy while it exists; zero otherwise.

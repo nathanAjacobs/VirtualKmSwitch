@@ -185,6 +185,14 @@ Consequences:
   (`vkms-win/src/focus_decoy.rs`): a zero-alpha, click-through tool window with no taskbar button
   and no Alt+Tab entry. It is created on engage, and on release it hands the foreground back to
   whatever held it before, then is destroyed.
+- **The decoy must not live in the process that owns the hooks — MEASURED.** While a window
+  belonging to the hooking process holds the foreground, Windows does not call that process's
+  low-level keyboard hook at all: no chord was ever seen, and `Ctrl+Alt+Shift+Esc` reached the
+  desktop as `Alt+Esc`. A decoy inside the agent therefore disabled every hotkey, panic included, for
+  exactly as long as input was blocked. So each agent starts a helper copy of itself
+  (`vkms-agent --focus-decoy`) that owns the window, and tells it show or hide over its standard
+  input. When that input closes, because the agent exits or is killed, the helper hands the
+  foreground back and exits too.
 - Both sources stamp the performance counter at capture. It is used rather than Rust's `Instant`
   because the stamp has to mean the same thing in the agent that takes it and the service that
   converts it, and `Instant` keeps its origin private.

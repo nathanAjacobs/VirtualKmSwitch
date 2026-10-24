@@ -11,6 +11,7 @@ use std::path::PathBuf;
 use log::LevelFilter;
 use vkms_agent::host::AgentHost;
 use vkms_ipc::AgentChannel;
+use vkms_win::focus_decoy;
 
 fn data_dir() -> PathBuf {
     std::env::var_os("ProgramData").map(PathBuf::from).unwrap_or_else(|| PathBuf::from(r"C:\ProgramData")).join("VirtualKmSwitch")
@@ -24,6 +25,19 @@ fn value_of(args: &[String], name: &str) -> Option<String> {
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let desktop = value_of(&args, "--desktop").unwrap_or_else(|| "Default".into());
+
+    if args.iter().any(|arg| arg.eq_ignore_ascii_case(focus_decoy::HOST_FLAG)) {
+        // Started by this agent to own the focus decoy, which must not live in the process with the
+        // hooks; see vkms_win::focus_decoy.
+        vkms_win::logging::init_file(&data_dir().join(format!("agent.{desktop}.focus-decoy.log")), LevelFilter::Info);
+
+        if let Err(error) = focus_decoy::run_host() {
+            log::error!("FOCUS DECOY HOST FAILED: {error}");
+            std::process::exit(1);
+        }
+
+        return;
+    }
 
     vkms_win::logging::init_file(&data_dir().join(format!("agent.{desktop}.log")), LevelFilter::Info);
 
