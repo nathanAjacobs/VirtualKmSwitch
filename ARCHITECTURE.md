@@ -179,6 +179,12 @@ Consequences:
   NumLock/Pause `0x45` scancode collision directly, instead of needing an E1-prefix state machine.
 - **All mouse capture stays on one ordered stream**, so a drag's button-down / move / button-up
   interleaving is preserved with no merging logic.
+- **The same leak reaches local games.** Any application registered for raw mouse input still gets
+  `WM_INPUT` while we block, and a game that acts on it whenever its window is active keeps moving
+  locally. So while engaged the agent gives the foreground to a **focus decoy**
+  (`vkms-win/src/focus_decoy.rs`): a zero-alpha, click-through tool window with no taskbar button
+  and no Alt+Tab entry. It is created on engage, and on release it hands the foreground back to
+  whatever held it before, then is destroyed.
 - Both sources stamp the performance counter at capture. It is used rather than Rust's `Instant`
   because the stamp has to mean the same thing in the agent that takes it and the service that
   converts it, and `Instant` keeps its origin private.
