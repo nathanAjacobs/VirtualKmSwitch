@@ -193,6 +193,12 @@ Consequences:
   (`vkms-agent --focus-decoy`) that owns the window, and tells it show or hide over its standard
   input. When that input closes, because the agent exits or is killed, the helper hands the
   foreground back and exits too.
+- **Taking the foreground needs a right the helper does not have.** While the user is active,
+  Windows refuses `SetForegroundWindow` to a process that is neither in the foreground nor the
+  source of the last input event. The agent lends its own right with `AllowSetForegroundWindow`,
+  but it only has one some of the time, so the decoy was taken inconsistently in the field. When the
+  first attempt is refused, the helper injects a zero-length mouse move, tagged with our signature
+  so the hook and capture ignore it, which makes it the source of the last input, and tries again.
 - **The decoy is an option, on by default.** It is kept in `local.json` and changed from the
   controller's Settings page (`GetSettings` / `SetSettings`, runtime tier, since it affects only this
   machine). The service carries it to the agents as a second bit in the inject ring's control word,

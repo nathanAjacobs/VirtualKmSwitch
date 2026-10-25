@@ -37,6 +37,9 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
     WS_EX_TOOLWINDOW, WS_EX_TRANSPARENT, WS_POPUP,
 };
 
+use vkms_core::{clock, InputEvent};
+
+use crate::injector::InputInjector;
 use crate::message_window::MessageWindow;
 use crate::{wide, Win32Error};
 
@@ -320,13 +323,32 @@ fn class_name() -> Vec<u16> {
 }
 
 /// Moves the foreground to `hwnd`.
+///
+/// While the user is active, Windows refuses `SetForegroundWindow` to a process that is neither in
+/// the foreground nor the source of the last input event. The right the parent lends with
+/// `AllowSetForegroundWindow` only exists when the parent itself has it, which it does only some of
+/// the time -- when it has just injected releases for modifiers still held from the chord. When the
+/// first attempt is refused, injecting an event makes this process the source of the last input:
+/// a zero-length move, so the cursor stays put, tagged as ours so the hook and capture ignore it.
 unsafe fn take_foreground(hwnd: HWND) {
-    BringWindowToTop(hwnd);
-    SetForegroundWindow(hwnd);
-    SetFocus(hwnd);
+    if !try_take_foreground(hwnd) {
+        InputInjector::inject_one(&InputEvent::mouse_move(clock::ticks(), 0, 0));
+
+        if try_take_foreground(hwnd) {
+            log::info!("the focus decoy took the foreground after a zero-length move");
+        }
+    }
 
     if GetForegroundWindow() != hwnd {
         // Not fatal: blocking still works. Only games reading raw input notice the difference.
         log::warn!("the focus decoy could not take the foreground; raw-input games may still see local mouse input");
     }
+}
+
+unsafe fn try_take_foreground(hwnd: HWND) -> bool {
+    BringWindowToTop(hwnd);
+    SetForegroundWindow(hwnd);
+    SetFocus(hwnd);
+
+    GetForegroundWindow() == hwnd
 }
