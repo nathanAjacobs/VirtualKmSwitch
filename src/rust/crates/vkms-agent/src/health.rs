@@ -6,7 +6,9 @@
 //! they are driving a remote machine while every keystroke lands locally.
 //!
 //! Liveness is proven by injecting a probe and confirming the hook saw it: a pair of opposed
-//! one-pixel moves, observable, and with zero net displacement if the hook really is dead.
+//! one-pixel moves, tagged so the hook swallows them, and with zero net displacement if the hook
+//! really is dead. Swallowing matters: the probe runs every few seconds on every machine, and let
+//! through it was a hover over whatever sat under the cursor.
 
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError};
@@ -14,8 +16,7 @@ use std::sync::Arc;
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
-use vkms_core::{clock, InputEvent};
-use vkms_win::hook::LowLevelHook;
+use vkms_win::hook::{self, LowLevelHook};
 use vkms_win::injector::InputInjector;
 
 /// Outcome of a liveness probe. Three states, not two.
@@ -38,9 +39,7 @@ pub enum HookProbeResult {
 /// Injects a probe and waits briefly for the hook to see it.
 pub fn probe(hook: &LowLevelHook, injector: &mut InputInjector) -> HookProbeResult {
     let before = hook.injected_seen_count();
-    let timestamp = clock::ticks();
-
-    let accepted = injector.inject(&[InputEvent::mouse_move(timestamp, 1, 0), InputEvent::mouse_move(timestamp, -1, 0)]);
+    let accepted = injector.inject_probe();
 
     // A refused injection says nothing about the hook.
     if accepted == 0 {
@@ -67,7 +66,8 @@ pub struct HookHealthMonitor {
 }
 
 impl HookHealthMonitor {
-    /// Probes every `interval`, but only while `should_probe` says injection can succeed.
+    /// Probes every `interval`, but only while `should_probe` says injection can succeed, and only
+    /// when there has been input since the hook was last proven alive.
     pub fn start(hook: Arc<LowLevelHook>, interval: Duration, should_probe: impl Fn() -> bool + Send + 'static) -> Self {
         let (stop_tx, stop_rx) = mpsc::channel::<()>();
         let failed = Arc::new(AtomicI64::new(0));
@@ -77,6 +77,10 @@ impl HookHealthMonitor {
             .name("VirtualKmSwitch.HookHealth".into())
             .spawn(move || {
                 let mut injector = InputInjector::new();
+
+                // When input last arrived as of the hook last being proven alive; `None` until then,
+                // and again whenever a probe proved nothing.
+                let mut proven_at: Option<u32> = None;
 
                 loop {
                     match stop_rx.recv_timeout(interval) {
@@ -88,11 +92,33 @@ impl HookHealthMonitor {
                         continue;
                     }
 
-                    if probe(&hook, &mut injector) == HookProbeResult::Dead {
-                        counter.fetch_add(1, Ordering::Relaxed);
-                        log::warn!("hook liveness probe went unobserved -- reinstalling hooks");
-                        hook.reinstall();
+                    // Windows removes a hook only for overrunning a callback, and callbacks only run
+                    // on input, so with no input since the last proof the hook is still there. Probing
+                    // anyway is not harmless: even swallowed, the probe counts as input, and every five
+                    // seconds of it kept an untouched machine from ever going idle -- no screen saver,
+                    // no lock, no sleep.
+                    let last_input = hook::last_input_tick();
+                    if last_input.is_some() && last_input == proven_at {
+                        continue;
                     }
+
+                    proven_at = match probe(&hook, &mut injector) {
+                        HookProbeResult::Alive => {
+                            // The probe was input too. Let both of its events land before noting the
+                            // time, or the second would look like activity and prompt another probe.
+                            std::thread::sleep(Duration::from_millis(50));
+                            hook::last_input_tick()
+                        }
+
+                        HookProbeResult::Dead => {
+                            counter.fetch_add(1, Ordering::Relaxed);
+                            log::warn!("hook liveness probe went unobserved -- reinstalling hooks");
+                            hook.reinstall();
+                            None
+                        }
+
+                        HookProbeResult::Inconclusive => None,
+                    };
                 }
             })
             .ok();

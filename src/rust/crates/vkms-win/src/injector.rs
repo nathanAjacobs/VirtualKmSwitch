@@ -17,7 +17,7 @@ use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
 
 use vkms_core::{InputEvent, InputEventFlags, InputEventKind};
 
-use crate::INJECTED_SIGNATURE;
+use crate::{INJECTED_SIGNATURE, PROBE_SIGNATURE};
 
 // Buttons are indexed as they are on the wire: 0=left, 1=right, 2=middle, 3=X1, 4=X2.
 const BUTTON_DOWN: [MOUSE_EVENT_FLAGS; 5] =
@@ -54,6 +54,19 @@ impl InputInjector {
             Some(input) => send(std::slice::from_ref(&input)),
             None => 0,
         }
+    }
+
+    /// Injects the hook watchdog's liveness probe: a pair of opposed one-pixel moves tagged with
+    /// [`PROBE_SIGNATURE`], which our own hook swallows. Applications never see it while the hook is
+    /// alive, and if it is dead the pair nets to zero displacement. Returns how many records the
+    /// system accepted.
+    pub fn inject_probe(&mut self) -> u32 {
+        let mut first = mouse_input(MOUSEEVENTF_MOVE | MOUSEEVENTF_MOVE_NOCOALESCE, 1, 0, 0);
+        let mut second = mouse_input(MOUSEEVENTF_MOVE | MOUSEEVENTF_MOVE_NOCOALESCE, -1, 0, 0);
+        first.Anonymous.mi.dwExtraInfo = PROBE_SIGNATURE as usize;
+        second.Anonymous.mi.dwExtraInfo = PROBE_SIGNATURE as usize;
+
+        send(&[first, second])
     }
 
     /// Releases a key by virtual key, locally. Used when control moves to another machine while a

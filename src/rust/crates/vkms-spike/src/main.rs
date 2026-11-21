@@ -228,6 +228,17 @@ fn verify_hook_health() -> i32 {
     println!("Hook liveness watchdog:");
 
     let mut injector = InputInjector::new();
+
+    // Installed first, so it runs after the hook under test: low-level hooks are called newest first.
+    // Whatever it sees is what the rest of the system -- applications included -- would have seen.
+    let downstream = match LowLevelHook::new(None) {
+        Ok(hook) => hook,
+        Err(error) => {
+            println!("  could not install hooks: {error}");
+            return 1;
+        }
+    };
+
     let hook = match LowLevelHook::new(None) {
         Ok(hook) => hook,
         Err(error) => {
@@ -236,8 +247,12 @@ fn verify_hook_health() -> i32 {
         }
     };
 
+    let downstream_before = downstream.injected_seen_count();
     let alive = health::probe(&hook, &mut injector);
+    sleep(Duration::from_millis(50));
+    let leaked = downstream.injected_seen_count() - downstream_before;
     println!("  hook installed            : {alive:?}");
+    println!("  probe events past the hook: {leaked}  (must be 0, or every probe is a hover)");
 
     // Exactly what Windows does on a timeout: the hooks go, and nothing says so.
     hook.unhook_silently();
@@ -250,7 +265,10 @@ fn verify_hook_health() -> i32 {
     let recovered = health::probe(&hook, &mut injector);
     println!("  after reinstall           : {recovered:?}");
 
-    let ok = alive == HookProbeResult::Alive && dead == HookProbeResult::Dead && recovered == HookProbeResult::Alive;
+    let ok = alive == HookProbeResult::Alive
+        && leaked == 0
+        && dead == HookProbeResult::Dead
+        && recovered == HookProbeResult::Alive;
     println!("  => watchdog {}", if ok { "detects a silent unhook and recovers" } else { "IS NOT RELIABLE" });
     i32::from(!ok)
 }

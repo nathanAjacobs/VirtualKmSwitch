@@ -42,6 +42,19 @@ pub use error::Win32Error;
 /// so filtering on it silently discards real movement.
 pub const INJECTED_SIGNATURE: u32 = 0x564B_4D53; // "VKMS"
 
+/// Tag stamped on the hook watchdog's liveness probe instead of [`INJECTED_SIGNATURE`].
+///
+/// Our own hook swallows events carrying it, so the probe proves the hook is running without ever
+/// reaching an application. Injected as ordinary input, the probe was a mouse move every few seconds
+/// on every machine, engaged or not: enough for a browser to show a video's hover controls, then hide
+/// them again, over and over, on a machine nobody was touching.
+pub const PROBE_SIGNATURE: u32 = 0x564B_4D50; // "VKMP"
+
+/// Whether a `dwExtraInfo` value marks an event we injected ourselves, probe or otherwise.
+pub(crate) fn is_ours(extra_info: usize) -> bool {
+    extra_info == INJECTED_SIGNATURE as usize || extra_info == PROBE_SIGNATURE as usize
+}
+
 /// A NUL-terminated UTF-16 copy of `text`, for passing to a `W` function.
 pub(crate) fn wide(text: &str) -> Vec<u16> {
     text.encode_utf16().chain(std::iter::once(0)).collect()

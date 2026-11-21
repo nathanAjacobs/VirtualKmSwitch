@@ -14,13 +14,14 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use windows_sys::Win32::Foundation::{GetLastError, HWND, LPARAM, LRESULT, WPARAM};
+use windows_sys::Win32::UI::Input::KeyboardAndMouse::{GetLastInputInfo, LASTINPUTINFO};
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     CallNextHookEx, SetWindowsHookExW, UnhookWindowsHookEx, HHOOK, KBDLLHOOKSTRUCT, LLKHF_INJECTED,
     LLMHF_INJECTED, MSLLHOOKSTRUCT, WH_KEYBOARD_LL, WH_MOUSE_LL, WM_APP, WM_DESTROY, WM_MOUSEMOVE,
 };
 
 use crate::message_window::MessageWindow;
-use crate::{Win32Error, INJECTED_SIGNATURE};
+use crate::{is_ours, Win32Error, PROBE_SIGNATURE};
 
 /// Categories of input the hook can independently swallow.
 pub mod block {
@@ -187,6 +188,15 @@ impl LowLevelHook {
     }
 }
 
+/// When the system last received input of any kind, ours included, as a `GetTickCount` value.
+///
+/// For the watchdog: a hook is only ever removed for overrunning a callback, and callbacks only run
+/// on input, so a hook proven alive stays alive until this moves. `None` if it cannot be read.
+pub fn last_input_tick() -> Option<u32> {
+    let mut info = LASTINPUTINFO { cbSize: std::mem::size_of::<LASTINPUTINFO>() as u32, dwTime: 0 };
+    (unsafe { GetLastInputInfo(&mut info) } != 0).then_some(info.dwTime)
+}
+
 impl Drop for LowLevelHook {
     fn drop(&mut self) {
         // Unblocked first: tearing down while blocked would leave the machine deaf for as long as
@@ -288,9 +298,18 @@ unsafe extern "system" fn mouse_procedure(code: i32, wparam: WPARAM, lparam: LPA
         if let (Some(shared), Some(data)) = (current(), (lparam as *const MSLLHOOKSTRUCT).as_ref()) {
             let message = wparam as u32;
 
+            let injected = data.flags & LLMHF_INJECTED != 0;
+
+            // The watchdog's probe has done its job by arriving here. Swallowed, so that proving the
+            // hook alive never moves the cursor or sends a hover to whatever is under it.
+            if injected && data.dwExtraInfo == PROBE_SIGNATURE as usize {
+                shared.injected_seen.fetch_add(1, Ordering::Release);
+                return 1;
+            }
+
             // Our own injected events pass through untouched. Blocking them would break driving a
             // peer that is itself driving another, which per-peer targeting allows.
-            let ours = data.flags & LLMHF_INJECTED != 0 && data.dwExtraInfo == INJECTED_SIGNATURE as usize;
+            let ours = injected && is_ours(data.dwExtraInfo);
 
             if ours {
                 shared.injected_seen.fetch_add(1, Ordering::Release);
@@ -324,7 +343,7 @@ unsafe extern "system" fn mouse_procedure(code: i32, wparam: WPARAM, lparam: LPA
 unsafe extern "system" fn keyboard_procedure(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     if code >= 0 {
         if let (Some(shared), Some(data)) = (current(), (lparam as *const KBDLLHOOKSTRUCT).as_ref()) {
-            let ours = data.flags & LLKHF_INJECTED != 0 && data.dwExtraInfo == INJECTED_SIGNATURE as usize;
+            let ours = data.flags & LLKHF_INJECTED != 0 && is_ours(data.dwExtraInfo);
 
             if ours {
                 shared.injected_seen.fetch_add(1, Ordering::Release);

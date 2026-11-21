@@ -17,7 +17,7 @@ use windows_sys::Win32::UI::WindowsAndMessaging::WM_INPUT;
 use vkms_core::{clock, InputEvent, InputEventFlags};
 
 use crate::message_window::MessageWindow;
-use crate::{Win32Error, INJECTED_SIGNATURE};
+use crate::{is_ours, Win32Error};
 
 /// Receives decoded input events, on the raw-input thread. Must not block.
 pub type RawInputSink = Box<dyn Fn(&InputEvent) + Send + Sync>;
@@ -265,7 +265,7 @@ impl ReaderState {
     fn decode_mouse(&self, mouse: &RAWMOUSE, timestamp: i64) {
         // Our own injection, echoed back. Suppressing it is what stops a peer that is both driving
         // another machine and being driven from looping input round the mesh.
-        if mouse.ulExtraInformation == INJECTED_SIGNATURE {
+        if is_ours(mouse.ulExtraInformation as usize) {
             self.stats.injected_suppressed.fetch_add(1, Ordering::Relaxed);
             return;
         }
@@ -328,7 +328,7 @@ impl ReaderState {
     }
 
     fn decode_keyboard(&self, keyboard: &RAWKEYBOARD, timestamp: i64) {
-        if keyboard.ExtraInformation == INJECTED_SIGNATURE {
+        if is_ours(keyboard.ExtraInformation as usize) {
             self.stats.injected_suppressed.fetch_add(1, Ordering::Relaxed);
             return;
         }

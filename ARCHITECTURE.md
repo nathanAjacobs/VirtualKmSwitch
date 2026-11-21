@@ -298,7 +298,7 @@ keeps typing believing they are driving a remote box while keystrokes land local
 | **RawInput** | Own message-only window; raw-input registration. | `GetRawInputData` for the current event, then drain with `GetRawInputBuffer` into a reused buffer. |
 | **Injection** | Drains the inbound ring and calls `SendInput`; applies the service's engaged state. | Creates no window or hook. |
 | **DesktopGate** | Polls which desktop owns input. | Reads the name only; never attaches. |
-| **HookHealth** | The watchdog. | Probes only while this desktop is showing. |
+| **HookHealth** | The watchdog. | Probes only while this desktop is showing, and only after input since the last proof. |
 
 `GetMessage` removes the current `WM_INPUT` before returning, so `GetRawInputBuffer` only sees events
 that arrived *after* it — hence handling the current event first, then draining. Buffered entries are
@@ -333,8 +333,18 @@ its own desktop is showing, so on the inactive agent the probe is refused — in
 dead hook unless "could not deliver" is reported separately from "not observed". Treating it as death
 reinstalled healthy hooks every five seconds. Found in the first live service run.
 
-`vkms-spike --hooks` proves the watchdog end to end: it removes the hooks the way Windows does on a
-timeout, confirms the probe reports them dead, reinstalls, and confirms they are alive again.
+**The probe must not be felt.** It runs on every machine, engaged or not, so it is tagged with a
+signature of its own (`PROBE_SIGNATURE`) and the hook swallows it once counted. Let through, it was a
+mouse move every five seconds: enough for a browser on an untouched machine to show a video's hover
+controls and hide them again, over and over. Swallowing is not the whole answer, though: a swallowed
+event still counts as input, so the probe alone kept that machine from ever going idle — no screen
+saver, lock or sleep. Windows only removes a hook for overrunning a callback, and callbacks only run
+on input, so the watchdog skips the probe while `GetLastInputInfo` has not moved since the hook was
+last proven alive.
+
+`vkms-spike --hooks` proves the watchdog end to end: it checks that no probe event gets past the hook,
+removes the hooks the way Windows does on a timeout, confirms the probe reports them dead,
+reinstalls, and confirms they are alive again.
 
 ### Hotkeys are matched in the hook
 
