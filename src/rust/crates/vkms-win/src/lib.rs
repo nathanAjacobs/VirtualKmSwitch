@@ -19,6 +19,7 @@ pub mod desktop;
 pub mod dpapi;
 pub mod event;
 pub mod files;
+pub mod focus_decoy;
 pub mod hook;
 pub mod injector;
 pub mod logging;

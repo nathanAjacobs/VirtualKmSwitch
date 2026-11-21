@@ -13,8 +13,11 @@ use vkms_ipc::{ControlRequest, ControlResponse, ControlTier, ControlVerb, Machin
 use crate::mesh_host::MeshHost;
 use crate::registry::PeerRegistry;
 use crate::router::{InputRouter, PeerSender};
-use crate::settings::{MAX_SLOT, MIN_SLOT};
+use crate::settings::{LocalSettingsDocument, MAX_SLOT, MIN_SLOT};
 use crate::supervisor::AgentChannels;
+
+/// The setting that says whether the focus decoy takes the foreground while blocking.
+const FOCUS_DECOY: &str = "focusDecoy";
 
 pub struct ControlEndpoint {
     pub registry: Arc<PeerRegistry>,
@@ -61,6 +64,8 @@ impl ControlEndpoint {
             ControlVerb::GetMachines => self.describe(),
             ControlVerb::GetHotkeys => self.get_hotkeys(),
             ControlVerb::SetHotkeys => self.set_hotkeys(&request),
+            ControlVerb::GetSettings => self.get_settings(),
+            ControlVerb::SetSettings => self.set_settings(&request),
             ControlVerb::Engage => self.engage(&request),
             ControlVerb::Disengage => {
                 // Never an error, even when nothing was engaged. This is what a person reaches for
@@ -173,6 +178,43 @@ impl ControlEndpoint {
                 ControlResponse::ok()
             }
         }
+    }
+
+    /// This machine's own options, as name -> "true"/"false".
+    fn get_settings(&self) -> ControlResponse {
+        let settings = self.registry.settings().load();
+
+        ControlResponse::ok_with(HashMap::from([(
+            FOCUS_DECOY.to_owned(),
+            settings.focus_decoy_enabled.to_string(),
+        )]))
+    }
+
+    /// Changes the options named in the arguments, leaving the rest as they are.
+    fn set_settings(&self, request: &ControlRequest) -> ControlResponse {
+        let Some(text) = request.argument(FOCUS_DECOY) else {
+            return ControlResponse::fail(format!("A '{FOCUS_DECOY}' argument is required."));
+        };
+
+        let Ok(enabled) = text.trim().to_ascii_lowercase().parse::<bool>() else {
+            return ControlResponse::fail(format!("'{text}' is not true or false."));
+        };
+
+        let result = self
+            .registry
+            .settings()
+            .update(|settings| LocalSettingsDocument { focus_decoy_enabled: enabled, ..settings.clone() });
+
+        if let Err(error) = result {
+            return ControlResponse::fail(format!("The setting could not be saved: {error}"));
+        }
+
+        // Applied only once saved, so what the agents do never disagrees with what the next
+        // restart will load.
+        self.channels.set_focus_decoy(enabled);
+        log::info!("focus decoy {}", if enabled { "enabled" } else { "disabled" });
+
+        self.get_settings()
     }
 
     async fn open_pairing(&self) -> ControlResponse {

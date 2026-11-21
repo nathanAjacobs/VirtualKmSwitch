@@ -9,7 +9,7 @@
             <StackPanel Spacing="4">
                 <TextBlock Text="Settings" Classes="title" />
                 <TextBlock
-                    Text="How the controller looks. These are yours alone — nothing here reaches another machine."
+                    Text="How the controller looks, and how this machine behaves while you drive another. These are yours alone — nothing here reaches another machine."
                     Classes="subtitle" />
             </StackPanel>
 
@@ -40,6 +40,39 @@
             </Border>
 
             <Border Classes="card">
+                <StackPanel Spacing="14">
+                    <TextBlock Text="WHILE DRIVING ANOTHER MACHINE" Classes="cardTitle" />
+
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Take focus away from games" Classes="strong" />
+                        <TextBlock
+                            Classes="muted"
+                            Text="Some games read the mouse straight from the hardware. Blocking the mouse here does not stop them, so while you drive another machine, the game you left behind would keep turning and clicking along with you." />
+                        <TextBlock
+                            Classes="muted"
+                            Text="With this on, an invisible window becomes the active window for as long as you are driving another machine, so those games stop listening. It has no taskbar button and takes no clicks. When control comes back, the window you were using is made active again." />
+                        <TextBlock
+                            Classes="muted"
+                            Text="Turn it off if you would rather the window you were using stay active — for example, if a fullscreen game minimizes whenever it loses focus." />
+                    </StackPanel>
+
+                    <Border
+                        Padding="3"
+                        BorderThickness="1"
+                        CornerRadius="11"
+                        HorizontalAlignment="Left"
+                        BorderBrush="{DynamicResource StrokeBrush}">
+                        <StackPanel Orientation="Horizontal" Spacing="2">
+                            <Button x:Name="FocusDecoyOnSegment" Classes="segment" Content="On" IsEnabled="False" Click="OnFocusDecoyClicked" />
+                            <Button x:Name="FocusDecoyOffSegment" Classes="segment" Content="Off" IsEnabled="False" Click="OnFocusDecoyClicked" />
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock x:Name="FocusDecoyHintLabel" Classes="muted" Text="Reading the setting from the service…" />
+                </StackPanel>
+            </Border>
+
+            <Border Classes="card">
                 <StackPanel Spacing="12">
                     <TextBlock Text="ABOUT" Classes="cardTitle" />
 
@@ -52,7 +85,7 @@
                         <TextBlock Grid.Row="0" Text="Paired machines" Classes="muted" />
                         <TextBlock Grid.Row="0" Grid.Column="1" Text="%ProgramData%\VirtualKmSwitch\peers.json" Classes="mono" TextWrapping="Wrap" />
 
-                        <TextBlock Grid.Row="1" Text="Hotkeys" Classes="muted" />
+                        <TextBlock Grid.Row="1" Text="Hotkeys and options" Classes="muted" />
                         <TextBlock Grid.Row="1" Grid.Column="1" Text="%ProgramData%\VirtualKmSwitch\local.json" Classes="mono" TextWrapping="Wrap" />
 
                         <TextBlock Grid.Row="2" Text="This page" Classes="muted" />

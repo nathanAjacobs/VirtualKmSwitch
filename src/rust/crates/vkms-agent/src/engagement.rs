@@ -18,6 +18,7 @@ use std::time::Duration;
 use vkms_core::held_keys::HeldKeyTracker;
 use vkms_core::hotkeys::{HotkeyActionKind, HotkeyMatcher};
 use vkms_core::{clock, keyboard, InputEvent, InputEventKind};
+use vkms_win::focus_decoy::FocusDecoy;
 use vkms_win::hook::{HookInputInfo, LowLevelHook};
 use vkms_win::injector::InputInjector;
 use vkms_win::raw_input::RawInputReader;
@@ -37,6 +38,13 @@ struct Inner {
 
     /// Whether local input is being swallowed and forwarded. Read by the hook on every event.
     engaged: Arc<AtomicBool>,
+
+    /// Holds the foreground while engaged. Blocking leaves raw mouse input flowing, and a game that
+    /// reads it would otherwise keep responding locally for as long as its window is active.
+    decoy: FocusDecoy,
+
+    /// Whether the decoy is used at all; a setting of this machine's, applied by the service.
+    decoy_enabled: AtomicBool,
 }
 
 impl Inner {
@@ -76,7 +84,14 @@ impl Inner {
 
     /// Mouse capture. Runs on the raw-input thread.
     fn on_raw(&self, event: &InputEvent) {
-        if !self.engaged.load(Ordering::Acquire) || event.kind == InputEventKind::KEY {
+        if !self.engaged.load(Ordering::Acquire) {
+            // A stand-down that bypasses set_engaged -- a capture ring the service stopped draining --
+            // leaves the decoy up; the next local input takes it down. One load when it is already down.
+            self.decoy.hide();
+            return;
+        }
+
+        if event.kind == InputEventKind::KEY {
             return;
         }
 
@@ -90,6 +105,7 @@ impl Inner {
     /// machine with no way back.
     fn panic_locally(&self) {
         self.engaged.store(false, Ordering::Release);
+        self.decoy.hide();
         self.flush_releases();
         self.matcher.reset();
     }
@@ -138,7 +154,14 @@ impl EngagementController {
         engaged: Arc<AtomicBool>,
         can_inject: impl Fn() -> bool + Send + 'static,
     ) -> Result<Self, Win32Error> {
-        let inner = Arc::new(Inner { sink, matcher: HotkeyMatcher::default(), held: HeldKeyTracker::new(), engaged });
+        let inner = Arc::new(Inner {
+            sink,
+            matcher: HotkeyMatcher::default(),
+            held: HeldKeyTracker::new(),
+            engaged,
+            decoy: FocusDecoy::new()?,
+            decoy_enabled: AtomicBool::new(true),
+        });
 
         // Hooks first: they must be in place before raw input starts delivering, or the first
         // events after engaging would reach the local machine.
@@ -176,11 +199,32 @@ impl EngagementController {
                 InputInjector::release_virtual_key(virtual_key);
             }
 
+            if self.inner.decoy_enabled.load(Ordering::Acquire) {
+                self.inner.decoy.show();
+            }
+
             log::info!("blocking local input; it is being forwarded");
         } else {
+            self.inner.decoy.hide();
             self.inner.flush_releases();
             log::info!("local input returned to this machine");
         }
+    }
+
+    /// Applies the service's setting for whether the focus decoy is used. Takes effect at once, even
+    /// while blocking: turning it off hands the foreground back, and turning it on takes it.
+    pub fn set_focus_decoy_enabled(&self, enabled: bool) {
+        if self.inner.decoy_enabled.swap(enabled, Ordering::AcqRel) == enabled {
+            return;
+        }
+
+        if !enabled {
+            self.inner.decoy.hide();
+        } else if self.is_engaged() {
+            self.inner.decoy.show();
+        }
+
+        log::info!("focus decoy {}", if enabled { "enabled" } else { "disabled" });
     }
 
     /// Releases everything and unblocks, as the panic hotkey does.

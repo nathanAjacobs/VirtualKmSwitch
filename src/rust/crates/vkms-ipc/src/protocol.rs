@@ -40,6 +40,12 @@ pub enum ControlVerb {
     GetHotkeys,
     SetHotkeys,
 
+    /// Reads this machine's own options, such as whether the focus decoy is used.
+    GetSettings,
+
+    /// Changes this machine's own options.
+    SetSettings,
+
     /// Reads which machines this one is paired with. Reading it is not itself privileged.
     GetMachines,
 
@@ -71,6 +77,9 @@ const RUNTIME_VERBS: &[ControlVerb] = &[
     // operation rather than one requiring administrator rights.
     ControlVerb::GetHotkeys,
     ControlVerb::SetHotkeys,
+    // Likewise: how this machine blocks its own input is a preference of whoever sits at it.
+    ControlVerb::GetSettings,
+    ControlVerb::SetSettings,
     // The list is already on the screen of anyone sitting at the machine, so requiring elevation to
     // read it would buy nothing and push people towards running the controller elevated.
     ControlVerb::GetMachines,

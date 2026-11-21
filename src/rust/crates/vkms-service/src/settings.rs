@@ -1,4 +1,4 @@
-//! This machine's own settings: its identity and its hotkey bindings.
+//! This machine's own settings: its identity, its hotkey bindings, and how it blocks local input.
 //!
 //! Bindings are local by design. Which key drives which machine is a property of the keyboard in
 //! front of you, so each machine numbers the others however its user likes.
@@ -47,6 +47,12 @@ pub struct LocalSettingsDocument {
     #[serde(default = "yes")]
     pub clipboard_sync_enabled: bool,
 
+    /// Whether an invisible window takes the foreground while local input is blocked, so a game
+    /// that reads raw mouse input stops responding to it here. On unless turned off, including for
+    /// settings written before the option existed.
+    #[serde(default = "yes")]
+    pub focus_decoy_enabled: bool,
+
     #[serde(flatten)]
     pub extra: Map<String, Value>,
 }
@@ -66,6 +72,7 @@ impl Default for LocalSettingsDocument {
             local_node_id: Uuid::nil(),
             hotkeys: Vec::new(),
             clipboard_sync_enabled: true,
+            focus_decoy_enabled: true,
             extra: Map::new(),
         }
     }
@@ -226,6 +233,7 @@ mod tests {
         let settings = dir.store().load();
         assert!(settings.hotkeys.is_empty());
         assert!(settings.clipboard_sync_enabled);
+        assert!(settings.focus_decoy_enabled);
     }
 
     #[test]
@@ -356,5 +364,16 @@ mod tests {
         let settings = store.load();
         assert_eq!("5d9d3f2a-8b1c-4e6f-9a0b-1c2d3e4f5a6b", settings.local_node_id.to_string());
         assert_eq!(Some(2), settings.slot_for(Uuid::parse_str("11111111-1111-1111-1111-111111111111").unwrap()));
+        assert!(settings.focus_decoy_enabled, "settings from before the option existed keep it on");
+    }
+
+    #[test]
+    fn turning_the_focus_decoy_off_is_remembered() {
+        let dir = TempDir::new();
+        let store = dir.store();
+
+        store.update(|settings| LocalSettingsDocument { focus_decoy_enabled: false, ..settings.clone() }).unwrap();
+
+        assert!(!store.load().focus_decoy_enabled);
     }
 }

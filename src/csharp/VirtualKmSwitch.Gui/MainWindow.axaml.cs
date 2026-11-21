@@ -35,7 +35,7 @@ public partial class MainWindow : Window
             [StatusNav] = () => new DashboardPage(service),
             [MachinesNav] = () => new MachinesPage(service),
             [HotkeysNav] = () => new HotkeysPage(service),
-            [SettingsNav] = () => new SettingsPage(appearance),
+            [SettingsNav] = () => new SettingsPage(service, appearance),
         };
 
         Navigate(StatusNav);

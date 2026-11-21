@@ -179,6 +179,31 @@ Consequences:
   NumLock/Pause `0x45` scancode collision directly, instead of needing an E1-prefix state machine.
 - **All mouse capture stays on one ordered stream**, so a drag's button-down / move / button-up
   interleaving is preserved with no merging logic.
+- **The same leak reaches local games.** Any application registered for raw mouse input still gets
+  `WM_INPUT` while we block, and a game that acts on it whenever its window is active keeps moving
+  locally. So while engaged the agent gives the foreground to a **focus decoy**
+  (`vkms-win/src/focus_decoy.rs`): a zero-alpha, click-through tool window with no taskbar button
+  and no Alt+Tab entry. It is created on engage, and on release it hands the foreground back to
+  whatever held it before, then is destroyed.
+- **The decoy must not live in the process that owns the hooks — MEASURED.** While a window
+  belonging to the hooking process holds the foreground, Windows does not call that process's
+  low-level keyboard hook at all: no chord was ever seen, and `Ctrl+Alt+Shift+Esc` reached the
+  desktop as `Alt+Esc`. A decoy inside the agent therefore disabled every hotkey, panic included, for
+  exactly as long as input was blocked. So each agent starts a helper copy of itself
+  (`vkms-agent --focus-decoy`) that owns the window, and tells it show or hide over its standard
+  input. When that input closes, because the agent exits or is killed, the helper hands the
+  foreground back and exits too.
+- **Taking the foreground needs a right the helper does not have.** While the user is active,
+  Windows refuses `SetForegroundWindow` to a process that is neither in the foreground nor the
+  source of the last input event. The agent lends its own right with `AllowSetForegroundWindow`,
+  but it only has one some of the time, so the decoy was taken inconsistently in the field. When the
+  first attempt is refused, the helper injects a zero-length mouse move, tagged with our signature
+  so the hook and capture ignore it, which makes it the source of the last input, and tries again.
+- **The decoy is an option, on by default.** It is kept in `local.json` and changed from the
+  controller's Settings page (`GetSettings` / `SetSettings`, runtime tier, since it affects only this
+  machine). The service carries it to the agents as a second bit in the inject ring's control word,
+  next to the engaged bit, and that bit means *off*, so a fresh ring of all zeroes means the
+  default.
 - Both sources stamp the performance counter at capture. It is used rather than Rust's `Instant`
   because the stamp has to mean the same thing in the agent that takes it and the service that
   converts it, and `Instant` keeps its origin private.
@@ -469,7 +494,7 @@ drops its open link, since revoking the pin only stops new ones.
 | File | Contents |
 |---|---|
 | `%ProgramData%\VirtualKmSwitch\peers.json` (+ `.bak`) | The machines this one is paired with: node id, certificate thumbprint, name, last address. |
-| `%ProgramData%\VirtualKmSwitch\local.json` | This machine's node id and hotkey bindings. |
+| `%ProgramData%\VirtualKmSwitch\local.json` | This machine's node id, hotkey bindings and options (such as the focus decoy). |
 | `%ProgramData%\VirtualKmSwitch\node.crt`, `node.key` | This machine's certificate, and its private key encrypted with DPAPI. |
 | `%ProgramData%\VirtualKmSwitch\*.log` | Service and per-desktop agent logs. |
 

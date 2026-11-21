@@ -24,6 +24,7 @@ use vkms_core::{clock, InputEvent, InputEventFlags, InputEventKind};
 use vkms_ipc::pipe_client::ControlPipeClient;
 use vkms_ipc::{protocol, ControlRequest, ControlVerb, MachinesView};
 use vkms_win::cursor;
+use vkms_win::focus_decoy;
 use vkms_win::hook::LowLevelHook;
 use vkms_win::injector::InputInjector;
 use vkms_win::pointer::{self, PointerSettingsMonitor};
@@ -45,6 +46,11 @@ fn main() {
         // Run as SYSTEM by a scheduled task, with no console to log to.
         let seconds = value("--seconds").and_then(|text| text.parse().ok()).unwrap_or(40);
         std::process::exit(uac::run(Duration::from_secs(seconds)));
+    }
+
+    if flag(focus_decoy::HOST_FLAG) {
+        // Started by the engagement controller to own the focus decoy; see vkms_win::focus_decoy.
+        std::process::exit(if focus_decoy::run_host().is_ok() { 0 } else { 1 });
     }
 
     vkms_win::logging::init_stderr(LevelFilter::Info);
