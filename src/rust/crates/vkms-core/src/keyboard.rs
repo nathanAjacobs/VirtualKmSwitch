@@ -5,6 +5,7 @@
 //! scancode, the extended flag, and the virtual key code.
 
 use crate::event::{InputEvent, InputEventFlags, InputEventKind};
+use crate::hotkeys::{VK_LSHIFT, VK_RSHIFT};
 
 // Low-level keyboard hook messages.
 pub const WM_KEYDOWN: u32 = 0x0100;
@@ -48,14 +49,22 @@ pub fn try_translate(
     }
 
     let is_up = is_key_up_message(message);
-    let extended = hook_flags & LLKHF_EXTENDED != 0;
+    let mut extended = hook_flags & LLKHF_EXTENDED != 0;
 
-    // "Fake shift": with Shift or NumLock active the driver brackets the grey navigation keys with
-    // synthetic shift events. A real LShift/RShift never carries the extended flag, so this test is
-    // exact. Forwarding them would leave shift stuck or double-toggled on the target, which
-    // synthesises its own from its own modifier state.
-    if extended && (scan_code == SCAN_CODE_LEFT_SHIFT || scan_code == SCAN_CODE_RIGHT_SHIFT) {
-        return None;
+    if scan_code == SCAN_CODE_LEFT_SHIFT || scan_code == SCAN_CODE_RIGHT_SHIFT {
+        // "Fake shift": with Shift or NumLock active the driver brackets the grey navigation keys
+        // with synthetic E0 2A / E0 36 shift events. The layout maps them to no virtual key, while a
+        // real shift always maps to VK_LSHIFT / VK_RSHIFT. The extended flag cannot tell them apart
+        // (see below). Forwarding them would leave shift stuck or released on the target, which
+        // synthesises its own from its own modifier state.
+        if virtual_key != VK_LSHIFT && virtual_key != VK_RSHIFT {
+            return None;
+        }
+
+        // Right Shift sends no E0 prefix, but the layout marks it KBDEXT, so the hook reports it with
+        // LLKHF_EXTENDED anyway. Replaying it with EXTENDEDKEY would inject E0 36 -- a fake shift,
+        // which maps to no key -- so the target would never see Shift at all.
+        extended = false;
     }
 
     // Pause and Ctrl+Break cannot be replayed from their scancodes: Pause emits the E1 1D 45
@@ -112,18 +121,32 @@ mod tests {
 
     #[test]
     fn fake_shift_is_dropped() {
-        // The driver brackets grey navigation keys with synthetic shifts when Shift or NumLock is
-        // active. Forwarding them leaves shift stuck or double-toggled on the target.
+        // The driver brackets grey navigation keys with synthetic E0 2A / E0 36 shifts when Shift or
+        // NumLock is active. They map to no virtual key: 0x00 when injected, 0xFF from a driver.
         for scan in [0x2A, 0x36] {
-            assert!(try_translate(WM_KEYDOWN, 0xA0, scan, LLKHF_EXTENDED, 1).is_none());
+            for vk in [0x00, 0xFF] {
+                for message in [WM_KEYDOWN, WM_KEYUP] {
+                    assert!(try_translate(message, vk, scan, LLKHF_EXTENDED, 1).is_none());
+                }
+            }
         }
     }
 
     #[test]
-    fn real_shift_is_kept() {
-        // A genuine shift never carries the extended flag, which is what makes the filter exact.
-        for scan in [0x2A, 0x36] {
-            assert_eq!(scan, try_translate(WM_KEYDOWN, 0xA0, scan, 0, 1).unwrap().code);
+    fn left_shift_is_kept() {
+        let event = try_translate(WM_KEYDOWN, 0xA0, 0x2A, 0, 1).unwrap();
+        assert_eq!(0x2A, event.code);
+        assert!(!event.flags.contains(InputEventFlags::EXTENDED));
+    }
+
+    #[test]
+    fn right_shift_is_kept_and_sent_unextended() {
+        // The hook reports Right Shift with LLKHF_EXTENDED although it has no E0 prefix. It must
+        // survive the fake-shift filter, and travel without the flag: E0 36 replays as no key.
+        for message in [WM_KEYDOWN, WM_KEYUP] {
+            let event = try_translate(message, 0xA1, 0x36, LLKHF_EXTENDED, 1).unwrap();
+            assert_eq!(0x36, event.code);
+            assert!(!event.flags.contains(InputEventFlags::EXTENDED));
         }
     }
 
